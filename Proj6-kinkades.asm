@@ -24,6 +24,12 @@ instruction1				BYTE	"Please provide 10 signed decimal integers.",0
 instruction2				BYTE	"Each number needs to be small enough to fit inside a 32 bit register. After",0
 instruction3				BYTE	"you have finished inputting the raw numbers I will display a list of the integers,",0
 instruction4				BYTE	"their sum, and their average value.",0
+goodbye						BYTE	"Thanks for playing!",0
+
+
+
+
+
 .code
 main PROC
 
@@ -38,7 +44,8 @@ PUSH	offset	instruction4
 CALL	introduction
 
 
-
+PUSH	offset	goodbye
+CALL	say_goodbye
 
 	Invoke ExitProcess,0	; exit to operating system
 main ENDP
@@ -54,23 +61,23 @@ introduction PROC
 
 	PUSH	EBP						; store stack frame reference
 	MOV		EBP, ESP		
-	MOV		EDX, [EBP + 28]
+	MOV		EDX, INTRO_1
 	CALL	WriteString
 	CALL	CrLf
-	MOV		EDX, [EBP + 24]
+	MOV		EDX, INTRO_2
 	CALL	WriteString
 	CALL	CrLf
 	CALL	CrLf
-	MOV		EDX, [EBP + 20]
+	MOV		EDX, INSTRUCTION_1
 	CALL	WriteString
 	CALL	CrLf
-	MOV		EDX, [EBP + 16]
+	MOV		EDX, INSTRUCTION_2
 	CALL	WriteString
 	CALL	CrLf
-	MOV		EDX, [EBP + 12]
+	MOV		EDX, INSTRUCTION_3
 	CALL	WriteString
 	CALL	CrLf
-	MOV		EDX, [EBP + 8]
+	MOV		EDX, INSTRUCTION_4
 	CALL	WriteString
 	CALL	CrLf
 
@@ -80,7 +87,22 @@ introduction PROC
 	ret		24
 
 introduction ENDP
+
+say_goodbye PROC
+	GOOD_BYE		EQU		[EBP + 8]
 	
+	PUSH	EBP						; store stack frame reference
+	MOV		EBP, ESP	
+	MOV		EDX, GOOD_BYE
+	CALL	WriteString
+	CALL	CrLF
+
+	; clean up stack
+	mov		ESP, EBP
+	pop		EBP
+	ret		4
+
+say_goodbye ENDP
 
 
 END main

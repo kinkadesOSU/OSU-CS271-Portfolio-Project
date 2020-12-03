@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:42:28
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:50:52
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Page 1 - 1
 
 
@@ -83,7 +83,7 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:42:28
 	   74 65 72 2E 20
 	   41 66 74 65 72
 	   00
- 000000CE 79 6F 75 20 68	instruction3				BYTE	"you have finished inputting the raw numbers I will display a list of the int",0
+ 000000CE 79 6F 75 20 68	instruction3				BYTE	"you have finished inputting the raw numbers I will display a list of the integers,",0
 	   61 76 65 20 66
 	   69 6E 69 73 68
 	   65 64 20 69 6E
@@ -98,16 +98,25 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:42:28
 	   20 6C 69 73 74
 	   20 6F 66 20 74
 	   68 65 20 69 6E
-	   74 00
- 0000011B 65 67 65 72 73	instruction4				BYTE	"egers, their sum, and their average value.",0
-	   2C 20 74 68 65
-	   69 72 20 73 75
-	   6D 2C 20 61 6E
-	   64 20 74 68 65
-	   69 72 20 61 76
-	   65 72 61 67 65
-	   20 76 61 6C 75
-	   65 2E 00
+	   74 65 67 65 72
+	   73 2C 00
+ 00000121 74 68 65 69 72	instruction4				BYTE	"their sum, and their average value.",0
+	   20 73 75 6D 2C
+	   20 61 6E 64 20
+	   74 68 65 69 72
+	   20 61 76 65 72
+	   61 67 65 20 76
+	   61 6C 75 65 2E
+	   00
+ 00000145 54 68 61 6E 6B	goodbye						BYTE	"Thanks for playing!",0
+	   73 20 66 6F 72
+	   20 70 6C 61 79
+	   69 6E 67 21 00
+
+
+
+
+
  00000000			.code
  00000000			main PROC
 
@@ -118,19 +127,20 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:42:28
  0000000A  68 00000057 R	PUSH	offset	instruction1
  0000000F  68 00000082 R	PUSH	offset	instruction2
  00000014  68 000000CE R	PUSH	offset	instruction3
- 00000019  68 0000011B R	PUSH	offset	instruction4
- 0000001E  E8 00000007		CALL	introduction
+ 00000019  68 00000121 R	PUSH	offset	instruction4
+ 0000001E  E8 00000011		CALL	introduction
 
 
-
+ 00000023  68 00000145 R	PUSH	offset	goodbye
+ 00000028  E8 00000063		CALL	say_goodbye
 
 					Invoke ExitProcess,0	; exit to operating system
- 00000023  6A 00	   *	    push   +000000000h
- 00000025  E8 00000000 E   *	    call   ExitProcess
- 0000002A			main ENDP
+ 0000002D  6A 00	   *	    push   +000000000h
+ 0000002F  E8 00000000 E   *	    call   ExitProcess
+ 00000034			main ENDP
 
 				; (insert additional procedures here)
- 0000002A			introduction PROC
+ 00000034			introduction PROC
  = [EBP + 28]				INTRO_1				EQU		[EBP + 28]
  = [EBP + 24]				INTRO_2				EQU		[EBP + 24]
  = [EBP + 20]				INSTRUCTION_1		EQU		[EBP + 20]
@@ -138,39 +148,53 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:42:28
  = [EBP + 12]				INSTRUCTION_3		EQU		[EBP + 12]
  = [EBP + 8]				INSTRUCTION_4		EQU		[EBP + 8]
 
- 0000002A  55				PUSH	EBP						; store stack frame reference
- 0000002B  8B EC			MOV		EBP, ESP		
- 0000002D  8B 55 1C			MOV		EDX, [EBP + 28]
- 00000030  E8 00000000 E		CALL	WriteString
- 00000035  E8 00000000 E		CALL	CrLf
- 0000003A  8B 55 18			MOV		EDX, [EBP + 24]
- 0000003D  E8 00000000 E		CALL	WriteString
- 00000042  E8 00000000 E		CALL	CrLf
- 00000047  E8 00000000 E		CALL	CrLf
- 0000004C  8B 55 14			MOV		EDX, [EBP + 20]
- 0000004F  E8 00000000 E		CALL	WriteString
- 00000054  E8 00000000 E		CALL	CrLf
- 00000059  8B 55 10			MOV		EDX, [EBP + 16]
- 0000005C  E8 00000000 E		CALL	WriteString
- 00000061  E8 00000000 E		CALL	CrLf
- 00000066  8B 55 0C			MOV		EDX, [EBP + 12]
- 00000069  E8 00000000 E		CALL	WriteString
- 0000006E  E8 00000000 E		CALL	CrLf
- 00000073  8B 55 08			MOV		EDX, [EBP + 8]
- 00000076  E8 00000000 E		CALL	WriteString
- 0000007B  E8 00000000 E		CALL	CrLf
+ 00000034  55				PUSH	EBP						; store stack frame reference
+ 00000035  8B EC			MOV		EBP, ESP		
+ 00000037  8B 55 1C			MOV		EDX, INTRO_1
+ 0000003A  E8 00000000 E		CALL	WriteString
+ 0000003F  E8 00000000 E		CALL	CrLf
+ 00000044  8B 55 18			MOV		EDX, INTRO_2
+ 00000047  E8 00000000 E		CALL	WriteString
+ 0000004C  E8 00000000 E		CALL	CrLf
+ 00000051  E8 00000000 E		CALL	CrLf
+ 00000056  8B 55 14			MOV		EDX, INSTRUCTION_1
+ 00000059  E8 00000000 E		CALL	WriteString
+ 0000005E  E8 00000000 E		CALL	CrLf
+ 00000063  8B 55 10			MOV		EDX, INSTRUCTION_2
+ 00000066  E8 00000000 E		CALL	WriteString
+ 0000006B  E8 00000000 E		CALL	CrLf
+ 00000070  8B 55 0C			MOV		EDX, INSTRUCTION_3
+ 00000073  E8 00000000 E		CALL	WriteString
+ 00000078  E8 00000000 E		CALL	CrLf
+ 0000007D  8B 55 08			MOV		EDX, INSTRUCTION_4
+ 00000080  E8 00000000 E		CALL	WriteString
+ 00000085  E8 00000000 E		CALL	CrLf
 
 					; clean up stack
- 00000080  8B E5			mov		ESP, EBP
- 00000082  5D				pop		EBP
- 00000083  C2 0018			ret		24
+ 0000008A  8B E5			mov		ESP, EBP
+ 0000008C  5D				pop		EBP
+ 0000008D  C2 0018			ret		24
 
- 00000086			introduction ENDP
+ 00000090			introduction ENDP
+
+ 00000090			say_goodbye PROC
+ = [EBP + 8]				GOOD_BYE		EQU		[EBP + 8]
 					
+ 00000090  55				PUSH	EBP						; store stack frame reference
+ 00000091  8B EC			MOV		EBP, ESP	
+ 00000093  8B 55 08			MOV		EDX, GOOD_BYE
+ 00000096  E8 00000000 E		CALL	WriteString
+
+					; clean up stack
+ 0000009B  8B E5			mov		ESP, EBP
+ 0000009D  5D				pop		EBP
+ 0000009E  C2 0004			ret		4
+
+ 000000A1			say_goodbye ENDP
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:42:28
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/03/20 08:50:52
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Symbols 2 - 1
 
 
@@ -264,8 +288,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 00000146 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 00000086 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 00000159 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000000A1 Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -372,9 +396,10 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-introduction . . . . . . . . . .	P Near	 0000002A _TEXT	Length= 0000005C Public STDCALL
-main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 0000002A Public STDCALL
+introduction . . . . . . . . . .	P Near	 00000034 _TEXT	Length= 0000005C Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000034 Public STDCALL
 printf . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
+say_goodbye  . . . . . . . . . .	P Near	 00000090 _TEXT	Length= 00000011 Public STDCALL
 scanf  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 wsprintfA  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 
@@ -440,6 +465,7 @@ GENERIC_ALL  . . . . . . . . . .	Number	 10000000h
 GENERIC_EXECUTE  . . . . . . . .	Number	 20000000h   
 GENERIC_READ . . . . . . . . . .	Number	 -80000000h   
 GENERIC_WRITE  . . . . . . . . .	Number	 40000000h   
+GOOD_BYE . . . . . . . . . . . .	Text   	 [EBP + 8]
 GetCommandLine . . . . . . . . .	Text   	 GetCommandLineA
 HANDLE . . . . . . . . . . . . .	Text   	 DWORD
 HEAP_GENERATE_EXCEPTIONS . . . .	Number	 00000004h   
@@ -603,12 +629,13 @@ blue . . . . . . . . . . . . . .	Number	 00000001h
 brown  . . . . . . . . . . . . .	Number	 00000006h   
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
 exit . . . . . . . . . . . . . .	Text   	 INVOKE ExitProcess,0
+goodbye  . . . . . . . . . . . .	Byte	 00000145 _DATA	
 gray . . . . . . . . . . . . . .	Number	 00000008h   
 green  . . . . . . . . . . . . .	Number	 00000002h   
 instruction1 . . . . . . . . . .	Byte	 00000057 _DATA	
 instruction2 . . . . . . . . . .	Byte	 00000082 _DATA	
 instruction3 . . . . . . . . . .	Byte	 000000CE _DATA	
-instruction4 . . . . . . . . . .	Byte	 0000011B _DATA	
+instruction4 . . . . . . . . . .	Byte	 00000121 _DATA	
 intro1 . . . . . . . . . . . . .	Byte	 00000000 _DATA	
 intro2 . . . . . . . . . . . . .	Byte	 0000003D _DATA	
 lightBlue  . . . . . . . . . . .	Number	 00000009h   
