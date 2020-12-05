@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 09:33:49
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Page 1 - 1
 
 
@@ -162,8 +162,16 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 09:33:49
  00000226  0000000C [		input_accumulator			BYTE	MAX_LENGTH DUP(?)
 	    00
 	   ]
+ 00000232  00000015 [		BUFFER						BYTE	21 DUP(0)
+	    00
+	   ]
+ 00000247 00000000		byteCount					DWORD	?
 
- 00000232 00000000		CONVERTED_DIGIT				DWORD	?	; make a local variable for final
+ 0000024B 00000000		result						DWORD	0	; make a local variable for final
+
+ 0000024F 30 31 32 33 34	number_string				BYTE	"0123456789",0
+	   35 36 37 38 39
+	   00
 
  00000000			.code
  00000000			main PROC
@@ -176,7 +184,7 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 09:33:49
  0000000F  68 00000082 R	PUSH	offset	instruction2
  00000014  68 000000CE R	PUSH	offset	instruction3
  00000019  68 00000121 R	PUSH	offset	instruction4
- 0000001E  E8 0000006A		CALL	introduction
+ 0000001E  E8 00000081		CALL	introduction
 
 
 				; read in the user's value
@@ -185,111 +193,81 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 09:33:49
 				;CALL	ReadVal
 
 				;------------------TEST ReadVal BEFORE CREATING PROCEDURE-----------------------------------
-					;ACCUMULATOR			EQU		[EBP + 12]
-					;ENTER_INSTRUCTION	EQU		[EBP + 8]
-
-					;LOCAL CONVERTED_DIGIT	DWORD
-
-					;PUSH	EBP						; store stack frame reference
-					;MOV		EBP, ESP
 
 					; give the user some instructions
  00000023  BA 00000159 R		MOV		EDX, OFFSET ENTER_INSTRUCTION
  00000028  E8 00000000 E		CALL	WriteString
 
-					MOV		EDX, input_accumulator
-Proj6-kinkades.asm(74) : error A2022:instruction operands must be the same size
- 0000002D  E8 00000000 E		CALL	ReadString				; gets the user's number as a string (need to convert to an int)
- 00000032  8B C8			MOV		ECX, EAX				; EAX has the length of the string in bytes, so we can move that to ECX for the loop counter
+ 0000002D  BA 00000232 R		MOV		EDX, OFFSET BUFFER
+ 00000032  B9 00000015			MOV		ECX, SIZEOF	BUFFER
+ 00000037  E8 00000000 E		CALL	ReadString				; gets the user's number as a string (need to convert to an int)
+ 0000003C  A3 00000247 R		MOV		byteCount, EAX
+ 00000041  8B 0D 00000247 R		MOV		ECX, byteCount			; moves the length of the string into ECX for the conversion steps
+
+ 00000047  BE 00000232 R		MOV		ESI, OFFSET BUFFER		; moves the string to ESI so LODSB can iterate through it
 
 					; convert string to int
- 0000003F			_conversionLoop:
- 0000003F  AC				LODSB							; puts a byte in AL
+ 0000004C  AC				LODSB							; puts a byte in AL
 					
 					; check if byte is a sign
- 00000040  3C 2D			CMP		al, '-'
- 00000042  75 02			JNE		_checkPositive
- 00000044  EB 2E			JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character	
-						
-						
- 00000046				_checkPositive:
- 00000046  3C 2B				CMP		al, "+"
- 00000048  75 02				JNE		_noSignIndicated			; assume the number is positive if the user didn't specify
- 0000004A  EB 28				JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character
+ 0000004D  3C 2D			CMP		al, '-'
+ 0000004F  75 00			JNE		_checkPositive
 
- 0000004C				_noSignIndicated:
- 0000004C  3C 30				CMP		al, '0'
- 0000004E  72 24				JB		_errorMessage
- 00000050  3C 39				CMP		al, '9'
- 00000052  77 20				JA		_errorMessage
+						
+ 00000051				_checkPositive:
+ 00000051  3C 2B				CMP		al, "+"
+ 00000053  75 02				JNE		_noSignIndicated	; assume the number is positive if the user didn't specify
+ 00000055  46					INC		ESI					; point to next digit
+ 00000056  AC					LODSB						; load the next digit
 
- 00000054					_doConversion:
+ 00000057				_noSignIndicated:
+ 00000057  3C 30				CMP		al, '0'
+ 00000059  72 33				JB		_errorMessage
+ 0000005B  3C 39				CMP		al, '9'
+ 0000005D  77 2F				JA		_errorMessage
+
+
+ 0000005F  8A D0				MOV		dl, al						; preserve the character so we can use EAX later		
+ 00000061  BD 00000000				MOV		EBP, 0						; use EBP for calc because EAX is locked up
+ 00000066  B8 00000000				MOV		EAX, 0
+ 0000006B  BB 0000000A				MOV		EBX, 10
+
+ 00000070					_outerConversionLoop:
 							; passes all checks, so we can convert the character to a digit
- 00000054  B8 00000000					MOV		EAX, 0
- 00000059  BB 0000000A					MOV		EBX, 10						; divisor for later step
 
- 0000005E  89 15 00000232 R				MOV		CONVERTED_DIGIT, EDX		; EDX has the offset to the accumulator array
- 00000064  F7 EB					IMUL	EBX							; multiplies EDX by 10
- 00000066  8B 15 00000232 R				MOV		EDX, CONVERTED_DIGIT		;1006
- 0000006C  70 06					JO		_errorMessage				; if the number overflows
- 0000006E  03 C2					ADD		EAX, EDX
- 00000070  70 02					JO		_errorMessage				; check overflow again
- 00000072  EB 00					JMP		_nextNumber
+ 00000070  83 E2 0F					AND		EDX, 0Fh
+ 00000073  89 15 0000024B R				MOV		result, EDX
+ 00000079  F7 EB					IMUL	EBX
+ 0000007B  8B 15 0000024B R				MOV		EDX, result			
+ 00000081  70 0B					JO		_errorMessage
+ 00000083  03 EA					add		EBP, EDX
+ 00000085  70 07					JO		_errorMessage
+							;INC		ESI						; point to next character !!don't have too increment because LODSB does it for us
+ 00000087  AC						LODSB							; load character to al
+ 00000088  8A D0					MOV		dl, al					; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
+ 0000008A  E2 E4					LOOP		_outerConversionLoop
 
- 00000074				_errorMessage:
-						;ERROR MESSAGE
-					; if it is, indicate that somehow
-							; move to the next character
-						; it it's not
-							; if the character is a digit (compare to characters '0' and '9'. No digit = return 0)
-								; MOV EAX, 0 ; clear accumulator
-								; MOV EBX, 10
-								; MOV the character into DL
-								; AND EDX, 0Fh			; converts to binary
-								; MOV CONVERTED_DIGIT, EDX ; 0s out CONVERTED_DIGIT
-								; IMUL EBX
-								; MOV EDX, CONVERTED_DIGIT
-								; if there is an overflow (overflow flag comparison)
-									;print error message and try again
-								; else:
-									; add EAX, EDX ; EAX should hold the integer when the loop is done
-									; check overflow
-									; inc ESI
-									; LOOP _conversionLoop
- 00000074				_nextNumber:
- 00000074  46					INC		ESI							; look at the next character
- 00000075  E2 C8				LOOP _conversionLoop
-
- 00000077  E8 00000000 E		call WriteInt ; test to see if the read procedure works
+ 0000008C  8B C5			MOV		EAX, EBP						; EBP has been holding the result, but EAX will need it for WriteInt
+							
+					
+ 0000008E				_errorMessage:
+					; print error message
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-				;write the user's value
-
+ 0000008E  E8 00000000 E	Call WriteInt
 
 				;say goodbye
- 0000007C  68 00000145 R	PUSH	offset	goodbye
- 00000081  E8 000000C3		CALL	say_goodbye
+ 00000093  68 00000145 R	PUSH	offset	goodbye
+ 00000098  E8 00000063		CALL	say_goodbye
 
 					Invoke ExitProcess,0	; exit to operating system
- 00000086  6A 00	   *	    push   +000000000h
- 00000088  E8 00000000 E   *	    call   ExitProcess
- 0000008D			main ENDP
+ 0000009D  6A 00	   *	    push   +000000000h
+ 0000009F  E8 00000000 E   *	    call   ExitProcess
+ 000000A4			main ENDP
 
 				; (insert additional procedures here)
- 0000008D			introduction PROC
+ 000000A4			introduction PROC
  = [EBP + 28]				INTRO_1				EQU		[EBP + 28]
  = [EBP + 24]				INTRO_2				EQU		[EBP + 24]
  = [EBP + 20]				INSTRUCTION_1		EQU		[EBP + 20]
@@ -297,143 +275,56 @@ Proj6-kinkades.asm(74) : error A2022:instruction operands must be the same size
  = [EBP + 12]				INSTRUCTION_3		EQU		[EBP + 12]
  = [EBP + 8]				INSTRUCTION_4		EQU		[EBP + 8]
 
- 0000008D  55				PUSH	EBP						; store stack frame reference
- 0000008E  8B EC			MOV		EBP, ESP		
- 00000090  8B 55 1C			MOV		EDX, INTRO_1
- 00000093  E8 00000000 E		CALL	WriteString
- 00000098  E8 00000000 E		CALL	CrLf
- 0000009D  8B 55 18			MOV		EDX, INTRO_2
- 000000A0  E8 00000000 E		CALL	WriteString
- 000000A5  E8 00000000 E		CALL	CrLf
- 000000AA  E8 00000000 E		CALL	CrLf
- 000000AF  8B 55 14			MOV		EDX, INSTRUCTION_1
- 000000B2  E8 00000000 E		CALL	WriteString
- 000000B7  E8 00000000 E		CALL	CrLf
- 000000BC  8B 55 10			MOV		EDX, INSTRUCTION_2
- 000000BF  E8 00000000 E		CALL	WriteString
- 000000C4  E8 00000000 E		CALL	CrLf
- 000000C9  8B 55 0C			MOV		EDX, INSTRUCTION_3
- 000000CC  E8 00000000 E		CALL	WriteString
- 000000D1  E8 00000000 E		CALL	CrLf
- 000000D6  8B 55 08			MOV		EDX, INSTRUCTION_4
- 000000D9  E8 00000000 E		CALL	WriteString
- 000000DE  E8 00000000 E		CALL	CrLf
+ 000000A4  55				PUSH	EBP						; store stack frame reference
+ 000000A5  8B EC			MOV		EBP, ESP		
+ 000000A7  8B 55 1C			MOV		EDX, INTRO_1
+ 000000AA  E8 00000000 E		CALL	WriteString
+ 000000AF  E8 00000000 E		CALL	CrLf
+ 000000B4  8B 55 18			MOV		EDX, INTRO_2
+ 000000B7  E8 00000000 E		CALL	WriteString
+ 000000BC  E8 00000000 E		CALL	CrLf
+ 000000C1  E8 00000000 E		CALL	CrLf
+ 000000C6  8B 55 14			MOV		EDX, INSTRUCTION_1
+ 000000C9  E8 00000000 E		CALL	WriteString
+ 000000CE  E8 00000000 E		CALL	CrLf
+ 000000D3  8B 55 10			MOV		EDX, INSTRUCTION_2
+ 000000D6  E8 00000000 E		CALL	WriteString
+ 000000DB  E8 00000000 E		CALL	CrLf
+ 000000E0  8B 55 0C			MOV		EDX, INSTRUCTION_3
+ 000000E3  E8 00000000 E		CALL	WriteString
+ 000000E8  E8 00000000 E		CALL	CrLf
+ 000000ED  8B 55 08			MOV		EDX, INSTRUCTION_4
+ 000000F0  E8 00000000 E		CALL	WriteString
+ 000000F5  E8 00000000 E		CALL	CrLf
 
 					; clean up stack
- 000000E3  8B E5			mov		ESP, EBP
- 000000E5  5D				pop		EBP
- 000000E6  C2 0018			ret		24
+ 000000FA  8B E5			mov		ESP, EBP
+ 000000FC  5D				pop		EBP
+ 000000FD  C2 0018			ret		24
 
- 000000E9			introduction ENDP
-
- 000000E9			ReadVal PROC
- = [EBP + 12]				ACCUMULATOR			EQU		[EBP + 12]
- = [EBP + 8]				ENTER_INSTRUCTION	EQU		[EBP + 8]
-Proj6-kinkades.asm(202) : error A2005:symbol redefinition : enter_instruction
-
-					LOCAL CONVERTED_DIGIT	DWORD
-Proj6-kinkades.asm(204) : error A2008:syntax error : dword
-
- 000000E9  55				PUSH	EBP						; store stack frame reference
- 000000EA  8B EC			MOV		EBP, ESP
-
-					; give the user some instructions
-					MOV		EDX, ENTER_INSTRUCTION
-Proj6-kinkades.asm(210) : error A2022:instruction operands must be the same size
- 000000EC  E8 00000000 E		CALL	WriteString
-
- 000000F1  8B 55 0C			MOV		EDX, ACCUMULATOR
- 000000F4  E8 00000000 E		CALL	ReadString				; gets the user's number as a string (need to convert to an int)
- 000000F9  8B C8			MOV		ECX, EAX				; EAX has the length of the string in bytes, so we can move that to ECX for the loop counter
-
-					; convert string to int
- 00000106			_conversionLoop:
- 00000106  AC				LODSB							; puts a byte in AL
-					
-					; check if byte is a sign
- 00000107  3C 2D			CMP		al, '-'
- 00000109  75 02			JNE		_checkPositive
- 0000010B  EB 2E			JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character	
-						
-						
- 0000010D				_checkPositive:
- 0000010D  3C 2B				CMP		al, "+"
- 0000010F  75 02				JNE		_noSignIndicated			; assume the number is positive if the user didn't specify
- 00000111  EB 28				JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character
-
- 00000113				_noSignIndicated:
- 00000113  3C 30				CMP		al, '0'
- 00000115  72 24				JB		_errorMessage
- 00000117  3C 39				CMP		al, '9'
- 00000119  77 20				JA		_errorMessage
-
- 0000011B					_doConversion:
-							; passes all checks, so we can convert the character to a digit
- 0000011B  B8 00000000					MOV		EAX, 0
- 00000120  BB 0000000A					MOV		EBX, 10						; divisor for later step
-
- 00000125  89 15 00000232 R				MOV		CONVERTED_DIGIT, EDX		; EDX has the offset to the accumulator array
- 0000012B  F7 EB					IMUL	EBX							; multiplies EDX by 10
- 0000012D  8B 15 00000232 R				MOV		EDX, CONVERTED_DIGIT		;1006
- 00000133  70 06					JO		_errorMessage				; if the number overflows
- 00000135  03 C2					ADD		EAX, EDX
- 00000137  70 02					JO		_errorMessage				; check overflow again
- 00000139  EB 00					JMP		_nextNumber
-
- 0000013B				_errorMessage:
-						;ERROR MESSAGE
-					; if it is, indicate that somehow
-							; move to the next character
-						; it it's not
-							; if the character is a digit (compare to characters '0' and '9'. No digit = return 0)
-								; MOV EAX, 0 ; clear accumulator
-								; MOV EBX, 10
-								; MOV the character into DL
-								; AND EDX, 0Fh			; converts to binary
-								; MOV CONVERTED_DIGIT, EDX ; 0s out CONVERTED_DIGIT
-								; IMUL EBX
-								; MOV EDX, CONVERTED_DIGIT
-								; if there is an overflow (overflow flag comparison)
-									;print error message and try again
-								; else:
-									; add EAX, EDX ; EAX should hold the integer when the loop is done
-									; check overflow
-									; inc ESI
-									; LOOP _conversionLoop
- 0000013B				_nextNumber:
- 0000013B  46					INC		ESI							; look at the next character
- 0000013C  E2 C8				LOOP _conversionLoop
-
- 0000013E  E8 00000000 E		call WriteInt ; test to see if the read procedure works
-
-					; clean up stack
- 00000143  8B E5			mov		ESP, EBP
- 00000145  5D				pop		EBP
- 00000146  C2 0004			ret		4
-
- 00000149			ReadVal ENDP
+ 00000100			introduction ENDP
 
 
 
- 00000149			say_goodbye PROC
+ 00000100			say_goodbye PROC
  = [EBP + 8]				GOOD_BYE		EQU		[EBP + 8]
 					
- 00000149  55				PUSH	EBP						; store stack frame reference
- 0000014A  8B EC			MOV		EBP, ESP	
- 0000014C  8B 55 08			MOV		EDX, GOOD_BYE
- 0000014F  E8 00000000 E		CALL	WriteString
- 00000154  E8 00000000 E		CALL	CrLF
+ 00000100  55				PUSH	EBP						; store stack frame reference
+ 00000101  8B EC			MOV		EBP, ESP	
+ 00000103  8B 55 08			MOV		EDX, GOOD_BYE
+ 00000106  E8 00000000 E		CALL	WriteString
+ 0000010B  E8 00000000 E		CALL	CrLF
 
 					; clean up stack
- 00000159  8B E5			mov		ESP, EBP
- 0000015B  5D				pop		EBP
- 0000015C  C2 0004			ret		4
+ 00000110  8B E5			mov		ESP, EBP
+ 00000112  5D				pop		EBP
+ 00000113  C2 0004			ret		4
 
- 0000015F			say_goodbye ENDP
+ 00000116			say_goodbye ENDP
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 09:33:49
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Symbols 2 - 1
 
 
@@ -527,8 +418,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 00000236 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 0000015F Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 0000025A Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 00000116 Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -598,13 +489,6 @@ ReadInt  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 ReadKeyFlush . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ReadKey  . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 ReadString . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-ReadVal  . . . . . . . . . . . .	P Near	 000000E9 _TEXT	Length= 00000060 Public STDCALL
-  _conversionLoop  . . . . . . .	L Near	 00000106 _TEXT	
-  _checkPositive . . . . . . . .	L Near	 0000010D _TEXT	
-  _noSignIndicated . . . . . . .	L Near	 00000113 _TEXT	
-  _doConversion  . . . . . . . .	L Near	 0000011B _TEXT	
-  _errorMessage  . . . . . . . .	L Near	 0000013B _TEXT	
-  _nextNumber  . . . . . . . . .	L Near	 0000013B _TEXT	
 SetConsoleCursorInfo . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SetConsoleCursorPosition . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 SetConsoleMode . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
@@ -642,16 +526,14 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-introduction . . . . . . . . . .	P Near	 0000008D _TEXT	Length= 0000005C Public STDCALL
-main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 0000008D Public STDCALL
-  _conversionLoop  . . . . . . .	L Near	 0000003F _TEXT	
-  _checkPositive . . . . . . . .	L Near	 00000046 _TEXT	
-  _noSignIndicated . . . . . . .	L Near	 0000004C _TEXT	
-  _doConversion  . . . . . . . .	L Near	 00000054 _TEXT	
-  _errorMessage  . . . . . . . .	L Near	 00000074 _TEXT	
-  _nextNumber  . . . . . . . . .	L Near	 00000074 _TEXT	
+introduction . . . . . . . . . .	P Near	 000000A4 _TEXT	Length= 0000005C Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 000000A4 Public STDCALL
+  _checkPositive . . . . . . . .	L Near	 00000051 _TEXT	
+  _noSignIndicated . . . . . . .	L Near	 00000057 _TEXT	
+  _outerConversionLoop . . . . .	L Near	 00000070 _TEXT	
+  _errorMessage  . . . . . . . .	L Near	 0000008E _TEXT	
 printf . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
-say_goodbye  . . . . . . . . . .	P Near	 00000149 _TEXT	Length= 00000016 Public STDCALL
+say_goodbye  . . . . . . . . . .	P Near	 00000100 _TEXT	Length= 00000016 Public STDCALL
 scanf  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 wsprintfA  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 
@@ -669,10 +551,9 @@ Symbols:
 @fardata?  . . . . . . . . . . .	Text   	 FLAT
 @fardata . . . . . . . . . . . .	Text   	 FLAT
 @stack . . . . . . . . . . . . .	Text   	 FLAT
-ACCUMULATOR  . . . . . . . . . .	Text   	 [EBP + 12]
 ALT_MASK . . . . . . . . . . . .	Number	 00000003h   
+BUFFER . . . . . . . . . . . . .	Byte	 00000232 _DATA	
 CAPSLOCK_ON  . . . . . . . . . .	Number	 00000080h   
-CONVERTED_DIGIT  . . . . . . . .	DWord	 00000232 _DATA	
 CREATE_ALWAYS  . . . . . . . . .	Number	 00000002h   
 CREATE_NEW . . . . . . . . . . .	Number	 00000001h   
 CTRL_MASK  . . . . . . . . . . .	Number	 0000000Ch   
@@ -883,6 +764,7 @@ avg_prompt . . . . . . . . . . .	Byte	 0000020E _DATA
 black  . . . . . . . . . . . . .	Number	 00000000h   
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
+byteCount  . . . . . . . . . . .	DWord	 00000247 _DATA	
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
 enter_instruction  . . . . . . .	Byte	 00000159 _DATA	
 error_message1 . . . . . . . . .	Byte	 00000178 _DATA	
@@ -905,12 +787,14 @@ lightGreen . . . . . . . . . . .	Number	 0000000Ah
 lightMagenta . . . . . . . . . .	Number	 0000000Dh   
 lightRed . . . . . . . . . . . .	Number	 0000000Ch   
 magenta  . . . . . . . . . . . .	Number	 00000005h   
+number_string  . . . . . . . . .	Byte	 0000024F _DATA	
 red  . . . . . . . . . . . . . .	Number	 00000004h   
 result_prompt  . . . . . . . . .	Byte	 000001CF _DATA	
+result . . . . . . . . . . . . .	DWord	 0000024B _DATA	
 sum_prompt . . . . . . . . . . .	Byte	 000001F1 _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
 wsprintf . . . . . . . . . . . .	Text   	 wsprintfA
 yellow . . . . . . . . . . . . .	Number	 0000000Eh   
 
 	   0 Warnings
-	   4 Errors
+	   0 Errors

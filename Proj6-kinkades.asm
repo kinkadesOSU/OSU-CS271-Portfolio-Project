@@ -36,8 +36,12 @@ sum_prompt					BYTE	"The sum of these numbers is: "
 avg_prompt					BYTE	"The rounded average is: "
 
 input_accumulator			BYTE	MAX_LENGTH DUP(?)
+BUFFER						BYTE	21 DUP(0)
+byteCount					DWORD	?
 
-CONVERTED_DIGIT				DWORD	?	; make a local variable for final
+result						DWORD	0	; make a local variable for final
+
+number_string				BYTE	"0123456789",0
 
 .code
 main PROC
@@ -59,36 +63,32 @@ CALL	introduction
 ;CALL	ReadVal
 
 ;------------------TEST ReadVal BEFORE CREATING PROCEDURE-----------------------------------
-	;ACCUMULATOR			EQU		[EBP + 12]
-	;ENTER_INSTRUCTION	EQU		[EBP + 8]
-
-	;LOCAL CONVERTED_DIGIT	DWORD
-
-	;PUSH	EBP						; store stack frame reference
-	;MOV		EBP, ESP
 
 	; give the user some instructions
 	MOV		EDX, OFFSET ENTER_INSTRUCTION
 	CALL	WriteString
 
-	MOV		EDX, input_accumulator
+	MOV		EDX, OFFSET BUFFER
+	MOV		ECX, SIZEOF	BUFFER
 	CALL	ReadString				; gets the user's number as a string (need to convert to an int)
-	MOV		ECX, EAX				; EAX has the length of the string in bytes, so we can move that to ECX for the loop counter
+	MOV		byteCount, EAX
+	MOV		ECX, byteCount			; moves the length of the string into ECX for the conversion steps
+
+	MOV		ESI, OFFSET BUFFER		; moves the string to ESI so LODSB can iterate through it
 
 	; convert string to int
-_conversionLoop:
 	LODSB							; puts a byte in AL
 	
 	; check if byte is a sign
 	CMP		al, '-'
 	JNE		_checkPositive
-	JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character	
-		
+
 		
 	_checkPositive:
 		CMP		al, "+"
-		JNE		_noSignIndicated			; assume the number is positive if the user didn't specify
-		JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character
+		JNE		_noSignIndicated	; assume the number is positive if the user didn't specify
+		INC		ESI					; point to next digit
+		LODSB						; load the next digit
 
 	_noSignIndicated:
 		CMP		al, '0'
@@ -96,61 +96,36 @@ _conversionLoop:
 		CMP		al, '9'
 		JA		_errorMessage
 
-		_doConversion:
+
+		MOV		dl, al						; preserve the character so we can use EAX later		
+		MOV		EBP, 0						; use EBP for calc because EAX is locked up
+		MOV		EAX, 0
+		MOV		EBX, 10
+
+		_outerConversionLoop:
 			; passes all checks, so we can convert the character to a digit
-			MOV		EAX, 0
-			MOV		EBX, 10						; divisor for later step
 
-			MOV		CONVERTED_DIGIT, EDX		; EDX has the offset to the accumulator array
-			IMUL	EBX							; multiplies EDX by 10
-			MOV		EDX, CONVERTED_DIGIT		;1006
-			JO		_errorMessage				; if the number overflows
-			ADD		EAX, EDX
-			JO		_errorMessage				; check overflow again
-			JMP		_nextNumber
+			AND		EDX, 0Fh
+			MOV		result, EDX
+			IMUL	EBX
+			MOV		EDX, result			
+			JO		_errorMessage
+			add		EBP, EDX
+			JO		_errorMessage
+			;INC		ESI						; point to next character !!don't have too increment because LODSB does it for us
+			LODSB							; load character to al
+			MOV		dl, al					; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
+			LOOP		_outerConversionLoop
 
+	MOV		EAX, EBP						; EBP has been holding the result, but EAX will need it for WriteInt
+			
+	
 	_errorMessage:
-		;ERROR MESSAGE
-	; if it is, indicate that somehow
-			; move to the next character
-		; it it's not
-			; if the character is a digit (compare to characters '0' and '9'. No digit = return 0)
-				; MOV EAX, 0 ; clear accumulator
-				; MOV EBX, 10
-				; MOV the character into DL
-				; AND EDX, 0Fh			; converts to binary
-				; MOV CONVERTED_DIGIT, EDX ; 0s out CONVERTED_DIGIT
-				; IMUL EBX
-				; MOV EDX, CONVERTED_DIGIT
-				; if there is an overflow (overflow flag comparison)
-					;print error message and try again
-				; else:
-					; add EAX, EDX ; EAX should hold the integer when the loop is done
-					; check overflow
-					; inc ESI
-					; LOOP _conversionLoop
-	_nextNumber:
-		INC		ESI							; look at the next character
-		LOOP _conversionLoop
-
-	call WriteInt ; test to see if the read procedure works
+	; print error message
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-;write the user's value
-
+Call WriteInt
 
 ;say goodbye
 PUSH	offset	goodbye
@@ -196,90 +171,6 @@ introduction PROC
 	ret		24
 
 introduction ENDP
-
-ReadVal PROC
-	ACCUMULATOR			EQU		[EBP + 12]
-	ENTER_INSTRUCTION	EQU		[EBP + 8]
-
-	LOCAL CONVERTED_DIGIT	DWORD
-
-	PUSH	EBP						; store stack frame reference
-	MOV		EBP, ESP
-
-	; give the user some instructions
-	MOV		EDX, ENTER_INSTRUCTION
-	CALL	WriteString
-
-	MOV		EDX, ACCUMULATOR
-	CALL	ReadString				; gets the user's number as a string (need to convert to an int)
-	MOV		ECX, EAX				; EAX has the length of the string in bytes, so we can move that to ECX for the loop counter
-
-	; convert string to int
-_conversionLoop:
-	LODSB							; puts a byte in AL
-	
-	; check if byte is a sign
-	CMP		al, '-'
-	JNE		_checkPositive
-	JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character	
-		
-		
-	_checkPositive:
-		CMP		al, "+"
-		JNE		_noSignIndicated			; assume the number is positive if the user didn't specify
-		JMP		_nextNumber					; move to the end of the structure to start the loop over with the next character
-
-	_noSignIndicated:
-		CMP		al, '0'
-		JB		_errorMessage
-		CMP		al, '9'
-		JA		_errorMessage
-
-		_doConversion:
-			; passes all checks, so we can convert the character to a digit
-			MOV		EAX, 0
-			MOV		EBX, 10						; divisor for later step
-
-			MOV		CONVERTED_DIGIT, EDX		; EDX has the offset to the accumulator array
-			IMUL	EBX							; multiplies EDX by 10
-			MOV		EDX, CONVERTED_DIGIT		;1006
-			JO		_errorMessage				; if the number overflows
-			ADD		EAX, EDX
-			JO		_errorMessage				; check overflow again
-			JMP		_nextNumber
-
-	_errorMessage:
-		;ERROR MESSAGE
-	; if it is, indicate that somehow
-			; move to the next character
-		; it it's not
-			; if the character is a digit (compare to characters '0' and '9'. No digit = return 0)
-				; MOV EAX, 0 ; clear accumulator
-				; MOV EBX, 10
-				; MOV the character into DL
-				; AND EDX, 0Fh			; converts to binary
-				; MOV CONVERTED_DIGIT, EDX ; 0s out CONVERTED_DIGIT
-				; IMUL EBX
-				; MOV EDX, CONVERTED_DIGIT
-				; if there is an overflow (overflow flag comparison)
-					;print error message and try again
-				; else:
-					; add EAX, EDX ; EAX should hold the integer when the loop is done
-					; check overflow
-					; inc ESI
-					; LOOP _conversionLoop
-	_nextNumber:
-		INC		ESI							; look at the next character
-		LOOP _conversionLoop
-
-	call WriteInt ; test to see if the read procedure works
-
-	; clean up stack
-	mov		ESP, EBP
-	pop		EBP
-	ret		4
-
-ReadVal ENDP
 
 
 
