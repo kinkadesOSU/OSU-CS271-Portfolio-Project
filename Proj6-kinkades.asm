@@ -41,12 +41,12 @@ user_input_array			BYTE	10 DUP(?),0
 input_accumulator			BYTE	MAX_LENGTH DUP(?)
 BUFFER						BYTE	21 DUP(0)
 byteCount					DWORD	?
-;result						DWORD	0	; make a local variable for final number to be saved
 LOCAL_ERROR1				EQU DWORD PTR [EBP - 4]
 LOCAL_ERROR2				EQU DWORD PTR [EBP - 8]
+
 ;-----------------CONVERT INT TO STRING-----------------
 int_string					BYTE	MAX_LENGTH DUP(?),0
-char_list					BYTE	"0123456789ABCDEF"
+char_list					BYTE	"0123456789"
 sign_indicator				DWORD	0						; need a boolean to tell us which sign the number is. Can't use the sign flag since it's controlled by the system. Assume it's a positive number to start (makes life easier)
 
 
@@ -78,75 +78,14 @@ Call	CrLf
 Call	WriteInt ; test that the string is being converted properly
 Call	CrLf
 Call	CrLf
-
-
-MOV		ECX, 0
-MOV		EDI, offset int_string
-ADD		EDI, (MAX_LENGTH-1)
-MOV		EBX, 10
-		
-CMP		EAX, 0
-JG		_divideLoop
-NEG		EAX						; make the negative number positive
-MOV		sign_indicator, 1
-
-
- _divideLoop:
- 	MOV		EDX, 0
- 	DIV		EBX
-
- 	XCHG	EAX, EDX						; swap the quotient and the remainder
- 	PUSH	EBX
- 	MOV		EBX, offset char_list
- 	XLAT									; looks up the ASCII value from the char_list in EAX
- 	POP		EBX
-
- 	MOV		[EDI], al									; saves the ascii digit
- 	;DEC		EDI
- 	DEC		EDI
- 	XCHG	EAX, EDX						; swap the quotient and the remainder
-
- 	INC		ECX
- 	CMP		EAX, 0					
- 	JNZ		_divideLoop						; if the quotient isn't 0, we need to divide again
-
-
-	; add negative sign if needed
-	CMP		sign_indicator, 1				; 1 means the sign is negative
-	JNE		_printString
-	INC		ECX								; increment ECX to tell WriteString that there is 1 more character to print
-	MOV		BYTE PTR[EDI], "-"
-	DEC		EDI
-
- 	; print the string
- 	_printString:
-	MOV		EDX, OFFSET result_prompt
-	CALL	WriteString
-	
-	INC		EDI								; skip the sign bit (should be empty for a positive number)
- 	MOV		EDX, EDI						; move pointer for the string to EDX for WriteString
- 	CALL	WriteString
-	CALL	CrLf
- ; calculate results
-
-
-
-
-
-
-
 ;------------DELETE AT FINAL----------------------------------------
 
-
-
-
-
-
-
-;PUSH	sign_indicator
-;PUSH	OFFSET result_prompt
-;PUSH	EAX							; has number to convert
-;CALL	convert_int_to_string
+PUSH	sign_indicator				; to flip the sign
+PUSH	OFFSET char_list			; lookup list for ASCII conversion
+PUSH	OFFSET int_string			; address to place the converted integer
+PUSH	OFFSET result_prompt
+PUSH	EAX							; has number to convert
+CALL	convert_int_to_string
 
 ; calculate results
 
@@ -273,20 +212,20 @@ convert_string_to_int PROC
 		_conversionLoop:
 			; passes all checks, so we can convert the character to a digit
 			AND		EDX, 0Fh
-			PUSH	EDX							; save EDX because IMUL messes with it
+			PUSH	EDX								; save EDX because IMUL messes with it
 			MOV		EAX, EBP
-			IMUL	EBX							; EAX = EAX * EBX
-			POP		EDX							; bring EDX back
+			IMUL	EBX								; EAX = EAX * EBX
+			POP		EDX								; bring EDX back
 		
 			JO		_errorMessage
 			MOV		EBP, EAX
 			add		EBP, EDX
 			JO		_errorMessage
-			LODSB								; load character to al
-			MOV		dl, al						; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
+			LODSB									; load character to al
+			MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
 			LOOP		_conversionLoop
 
-		;MOV		EDI, LIST_OF_NUMBERS				; offset to address of array that will hold the ten
+		;MOV		EDI, LIST_OF_NUMBERS			; offset to address of array that will hold the ten
 		MOV		EAX, EBP							; EBP has been holding the result, but EAX will need it for WriteInt
 		;STOSB										; stores the byte. USES EDI!!!!!!!!!
 		
@@ -318,63 +257,70 @@ convert_string_to_int ENDP
 
 
 convert_int_to_string PROC
-	;INT_SIGN			EQU		[EBP + 16]
-	USER_MESSAGE		EQU		[EBP + 12]
+	INT_SIGN			EQU		[EBP + 24]			; make shift sign flag		
+	LOOKUP_LIST			EQU		[EBP + 20]			; offset to char_list
+	CONVERTED_STRING	EQU		[EBP + 16]			; string that holds the converted integer
+	USER_MESSAGE		EQU		[EBP + 12]			; offset to result_prompt
 	NUMBER_TO_CONVERT	EQU		[EBP + 8]
 	
-	LOCAL INT_SIGN_LOCAL:DWORD
+	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
 
-	PUSH	EBP						; store stack frame reference
+	PUSH	EBP										; store stack frame reference
 	MOV		EBP, ESP	
 
-	;MOV		EAX, INT_SIGN
-	;MOV		INT_SIGN_LOCAL, EAX
+	SUB		ESP, 4									; make room for local variable
 
-	MOV		EAX, 0					; clear EAX to test that it's being passed properly
+	MOV		EAX, NUMBER_TO_CONVERT
+	
+	MOV		EBX, INT_SIGN
+	MOV		INT_SIGN_LOCAL, EBX
 
-	; set up various registers
-	MOV		ECX, 0
-	MOV		EDI, offset int_string
-	ADD		EDI, (MAX_LENGTH - 1)
-	MOV		EBX, 10
-	MOV		EAX, NUMBER_TO_CONVERT				
-
-
-	OR		EAX, EAX
-	JNS		_divideLoop
-	NEG		EAX						; make the negative number positive
-	MOV		INT_SIGN_LOCAL, 1
-
-
-
-	_divideLoop:
-		MOV		EDX, 0
-		DIV		EBX
-
-		XCHG	EAX, EDX						; swap the quotient and the remainder
-		PUSH	EBX
-		MOV		EBX, offset char_list
-		XLAT									; looks up the ASCII value from the char_list in EAX
-		POP		EBX
-
-		STOSB									; saves the ascii digit
-		DEC		EDI								; decrement EDI because STOSB automatically increments it
-		DEC		EDI								; decrement again to point to the correct memory address
-		XCHG	EAX, EDX						; swap the quotient and the remainder
-
-		INC		ECX
-		OR		EAX, EAX					
-		JNZ		_divideLoop						; if the quotient isn't 0, we need to divide again
-
-	; print user message
+	; print result message so the references stay ok
 	MOV		EDX, USER_MESSAGE
 	CALL	WriteString
 
-	; print the string
-	INC		EDI
-	MOV		EDX, EDI
-	CALL	WriteString
-	CALL	CrLf
+	MOV		ECX, 0
+	MOV		EDI,CONVERTED_STRING					; offset int_string
+	ADD		EDI, (MAX_LENGTH-1)
+	MOV		EBX, 10
+		
+	CMP		EAX, 0
+	JG		_divideLoop
+	NEG		EAX									; make the negative number positive
+	MOV		INT_SIGN_LOCAL, 1
+
+	 _divideLoop:
+ 		MOV		EDX, 0
+ 		DIV		EBX
+
+ 		XCHG	EAX, EDX							; swap the quotient and the remainder
+		PUSH	EBX
+ 		MOV		EBX, LOOKUP_LIST					; offset char_list
+ 		XLAT										; looks up the ASCII value from the char_list in EAX
+ 		POP		EBX
+
+ 		MOV		[EDI], al							; saves the ascii digit
+ 		;DEC		EDI
+ 		DEC		EDI
+ 		XCHG	EAX, EDX							; swap the quotient and the remainder
+
+ 		INC		ECX
+ 		CMP		EAX, 0					
+ 		JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
+
+
+		; add negative sign if needed
+		CMP		INT_SIGN_LOCAL, 1				; 1 means the sign is negative
+		JNE		_printString
+		INC		ECX								; increment ECX to tell WriteString that there is 1 more character to print
+		MOV		BYTE PTR[EDI], "-"
+		DEC		EDI
+
+ 	; print the string
+ 	_printString:
+	INC		EDI								; skip the sign bit (should be empty for a positive number)
+ 	MOV		EDX, EDI						; move pointer for the string to EDX for WriteString
+ 	CALL	WriteString
 	CALL	CrLf
 
 	; clean up stack
