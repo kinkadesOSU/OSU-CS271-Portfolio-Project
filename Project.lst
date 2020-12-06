@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/06/20 16:31:56
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/06/20 16:36:37
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Page 1 - 1
 
 
@@ -381,8 +381,9 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/06/20 16:31:56
  00000185  E8 00000000 E			CALL	CrLf
  0000018A  8B 55 F8				MOV		EDX, LOCAL_ERROR2
  0000018D  E8 00000000 E			CALL	WriteString
- 00000192  E9 FFFFFF6F				JMP		_enterValue
- 00000197  55					PUSH	EBP
+ 00000192  55					PUSH	EBP
+ 00000193  E9 FFFFFF6E				JMP		_enterValue
+						;PUSH	EBP
 
  00000198				_endProcedure:
  00000198  8B E5			mov		ESP, EBP
@@ -485,7 +486,7 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/06/20 16:31:56
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/06/20 16:31:56
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/06/20 16:36:37
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Symbols 2 - 1
 
 

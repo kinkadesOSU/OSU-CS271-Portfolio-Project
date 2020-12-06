@@ -245,8 +245,9 @@ convert_string_to_int PROC
 		CALL	CrLf
 		MOV		EDX, LOCAL_ERROR2
 		CALL	WriteString
-		JMP		_enterValue
 		PUSH	EBP
+		JMP		_enterValue
+		;PUSH	EBP
 
 	_endProcedure:
 	mov		ESP, EBP
