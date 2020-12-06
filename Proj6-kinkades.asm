@@ -35,6 +35,8 @@ result_prompt				BYTE	"You entered the following numbers: ",0
 sum_prompt					BYTE	"The sum of these numbers is: ",0
 avg_prompt					BYTE	"The rounded average is: ",0
 
+user_input_array			BYTE	10 DUP(?),0
+
 ;-----------------CONVERT STRING TO INT-----------------
 input_accumulator			BYTE	MAX_LENGTH DUP(?)
 BUFFER						BYTE	21 DUP(0)
@@ -44,6 +46,7 @@ byteCount					DWORD	?
 ;-----------------CONVERT INT TO STRING-----------------
 int_string					BYTE	MAX_LENGTH DUP(?),0
 char_list					BYTE	"0123456789ABCDEF"
+sign_indicator				DWORD	0						; need a boolean to tell us which sign the number is. Can't use the sign flag since it's controlled by the system. Assume it's a positive number to start (makes life easier)
 
 
 .code
@@ -61,23 +64,22 @@ CALL	introduction
 
 
 ; read in the user's value
-;PUSH	offset	input_accumulator		; array to hold the converted number
-;PUSH	offset	enter_instruction
-;CALL	ReadVal
-
+;PUSH	OFFSET	user_input_array
 PUSH	OFFSET	error_message1
 PUSH	OFFSET	error_message2
 PUSH	OFFSET	enter_instruction
 PUSH	OFFSET	BUFFER
 PUSH	SIZEOF	BUFFER
 CALL	convert_string_to_int	
-;------------------TEST ReadVal BEFORE CREATING PROCEDURE-----------------------------------
 
+;------------DELETE AT FINAL----------------------------------------
 Call	CrLf
 Call	WriteInt ; test that the string is being converted properly
 Call	CrLf
 Call	CrLf
+;------------DELETE AT FINAL----------------------------------------
 
+;PUSH	sign_indicator
 PUSH	OFFSET result_prompt
 PUSH	EAX							; has number to convert
 CALL	convert_int_to_string
@@ -132,6 +134,7 @@ introduction ENDP
 
 convert_string_to_int PROC
 
+	;LIST_OF_NUMBERS				EQU [EBP + 28]
 	ERROR1						EQU [EBP + 24]
 	ERROR2						EQU	[EBP + 20]
 	USER_INSTRUCTION			EQU [EBP + 16]
@@ -139,8 +142,8 @@ convert_string_to_int PROC
 	SIZEOF_STRING_BUFFER		EQU [EBP + 8]
 
 	PUSH	EBP						; store stack frame reference
-	MOV		EBP, ESP	
-
+	MOV		EBP, ESP
+	PUSH	EBP
 
 	; give the user some instructions
 	MOV		EDX, USER_INSTRUCTION
@@ -149,49 +152,50 @@ convert_string_to_int PROC
 	_enterValue:
 		MOV		EDX, STRING_BUFFER
 		MOV		ECX, SIZEOF_STRING_BUFFER
-		CALL	ReadString				; gets the user's number as a string (need to convert to an int)
-		MOV		ECX, EAX				; moves y into ECX for the conversion steps
-		MOV		ESI, STRING_BUFFER		; moves the string to ESI so LODSB can iterate through it
+		CALL	ReadString					; gets the user's number as a string (need to convert to an int)
+		MOV		ECX, EAX					; moves y into ECX for the conversion steps
+		MOV		ESI, STRING_BUFFER			; moves the string to ESI so LODSB can iterate through it
 
 		; convert string to int
-		LODSB							; puts a byte in AL
-		MOV		dl, al					; preserve the character so we can use EAX later
-	
-		MOV		EDI, 1					; assume the number is positive to begin with. Logic get's complicated to have the default later on	
+		LODSB								; puts a byte in AL
+		MOV		dl, al						; preserve the character so we can use EAX later
+		MOV		EBP, 1						; assume the number is positive to begin with. Logic get's complicated to have the default later on	
 		
 		_checkNegative:
 			CMP		dl, '-'
 			JNE		_checkPositive
-			MOV		EDI, -1
+			MOV		EBP, -1
 
-			LODSB						; load the next digit
+			LODSB							; load the next digit
 			MOV		dl, al					; preserve the character so we can use EAX later
-			DEC		ECX					; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
+			DEC		ECX						; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
 		
 		_checkPositive:
 			CMP		dl, "+"
-			JNE		_noSignIndicated	; assume the number is positive if the user didn't specify
-			MOV		EDI, 1				
+			JNE		_noSignIndicated		; assume the number is positive if the user didn't specify
+			MOV		EBP, 1				
 			
-			LODSB						; load the next digit
+			LODSB							; load the next digit
 			MOV		dl, al					; preserve the character so we can use EAX later
-			DEC		ECX					; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
+			DEC		ECX						; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
 		
 		_noSignIndicated:
-			;PUSH	EDI					; holds +/- depending on what's happened above
 			CMP		dl, '0'
 			JB		_errorMessage
 			CMP		dl, '9'
 			JA		_errorMessage
 
-			PUSH	EBP							; has our stack pointer, but is also being used for the calculation
-			MOV		EBP, 0						; use EBP for calc because EAX is locked up
+			POP		EAX						; get the stack pointer off the stack
+			PUSH	EBP						; +/- 1
+			MOV		EBP, EAX
+
+			PUSH	EBP						; has our stack pointer, but is also being used for the calculation
+			MOV		EBP, 0					; use EBP for calc because EAX is locked up
 			MOV		EAX, 0
 			MOV		EBX, 10
 
 		_conversionLoop:
 			; passes all checks, so we can convert the character to a digit
-
 			AND		EDX, 0Fh
 			PUSH	EDX							; save EDX because IMUL messes with it
 			MOV		EAX, EBP
@@ -206,10 +210,15 @@ convert_string_to_int PROC
 			MOV		dl, al						; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
 			LOOP		_conversionLoop
 
+		;MOV		EDI, LIST_OF_NUMBERS				; offset to address of array that will hold the ten
 		MOV		EAX, EBP							; EBP has been holding the result, but EAX will need it for WriteInt
-		MOV		EBP, EDI							; EBP should have the +/- 1 that's been in EDI
+		;STOSB										; stores the byte. USES EDI!!!!!!!!!
+		
+		POP		EBP									; EBP has the old stack pointer value	
+		MOV		EDI, EBP							; preserve it because EDI is going to be used
+		POP		EBP									; EBP should have the +/- 1
 		IMUL	EBP									; EAX * EBP ( +/- 1)
-		POP		EDX									; restore stack pointer to EDX
+		MOV		EBP, EDI							; restore stack pointer to EBP
 		JMP		_endProcedure
 
 	_errorMessage:
@@ -222,7 +231,6 @@ convert_string_to_int PROC
 		JMP		_enterValue
 
 	_endProcedure:
-	mov		EBP, EDX
 	mov		ESP, EBP
 	pop		EBP
 	ret		20
@@ -231,12 +239,19 @@ convert_string_to_int ENDP
 
 
 convert_int_to_string PROC
+	;INT_SIGN			EQU		[EBP + 16]
 	USER_MESSAGE		EQU		[EBP + 12]
 	NUMBER_TO_CONVERT	EQU		[EBP + 8]
-
 	
+	LOCAL INT_SIGN_LOCAL:DWORD
+
 	PUSH	EBP						; store stack frame reference
 	MOV		EBP, ESP	
+
+	;MOV		EAX, INT_SIGN
+	;MOV		INT_SIGN_LOCAL, EAX
+
+	MOV		EAX, 0					; clear EAX to test that it's being passed properly
 
 	; set up various registers
 	MOV		ECX, 0
@@ -244,6 +259,14 @@ convert_int_to_string PROC
 	ADD		EDI, (MAX_LENGTH - 1)
 	MOV		EBX, 10
 	MOV		EAX, NUMBER_TO_CONVERT				
+
+
+	OR		EAX, EAX
+	JNS		_divideLoop
+	NEG		EAX						; make the negative number positive
+	MOV		INT_SIGN_LOCAL, 1
+
+
 
 	_divideLoop:
 		MOV		EDX, 0
