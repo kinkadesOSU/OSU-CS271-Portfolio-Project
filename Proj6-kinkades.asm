@@ -73,12 +73,7 @@ PUSH	OFFSET	BUFFER
 PUSH	SIZEOF	BUFFER
 CALL	convert_string_to_int	
 
-;------------DELETE AT FINAL----------------------------------------
-Call	CrLf
-Call	WriteInt ; test that the string is being converted properly
-Call	CrLf
-Call	CrLf
-;------------DELETE AT FINAL----------------------------------------
+
 
 PUSH	sign_indicator				; to flip the sign
 PUSH	OFFSET char_list			; lookup list for ASCII conversion
@@ -187,7 +182,7 @@ convert_string_to_int PROC
 		
 		_checkPositive:
 			CMP		dl, "+"
-			JNE		_noSignIndicated		; assume the number is positive if the user didn't specify
+			JNE		_noSignIndicated	; assume the number is positive if the user didn't specify
 			MOV		EBP, 1				
 			
 			LODSB							; load the next digit
@@ -210,19 +205,26 @@ convert_string_to_int PROC
 			MOV		EBX, 10
 
 		_conversionLoop:
-			; passes all checks, so we can convert the character to a digit
+			; passes sign checks. This loop then iterates through each character. Need to verify that the character is a digit so we can convert the character to a digit
+			; check new digit
+			CMP		dl, '0'
+			JB		_errorMessage
+			CMP		dl, '9'
+			JA		_errorMessage
+			
+			; convert
 			AND		EDX, 0Fh
 			PUSH	EDX								; save EDX because IMUL messes with it
-			MOV		EAX, EBP
+			MOV		EAX, EBP						; EBP has 0 on the first pass. It then increases by a factor for 10 each round
 			IMUL	EBX								; EAX = EAX * EBX
 			POP		EDX								; bring EDX back
 		
-			JO		_errorMessage
+			JO		_errorMessage					; check if EDX has overflowed (result of the multiplication by 10)
 			MOV		EBP, EAX
-			add		EBP, EDX
-			JO		_errorMessage
+			add		EBP, EDX						; bring pointer back
+			JO		_errorMessage					; checks if EBP has overflowed (has the result)
 			LODSB									; load character to al
-			MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
+			MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl		
 			LOOP		_conversionLoop
 
 		;MOV		EDI, LIST_OF_NUMBERS			; offset to address of array that will hold the ten
