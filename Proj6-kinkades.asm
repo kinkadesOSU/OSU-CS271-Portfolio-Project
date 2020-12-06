@@ -28,20 +28,23 @@ instruction4				BYTE	"their sum, and their average value.",0
 goodbye						BYTE	"Thanks for playing!",0
 
 enter_instruction			BYTE	"Please enter a signed number: ",0
-error_message1				BYTE	"ERROR: You did not enter a signed number, or your number was too big."
-error_message2				BYTE	"Please try again: "
+error_message1				BYTE	"ERROR: You did not enter a signed number, or your number was too big.",0
+error_message2				BYTE	"Please try again: ",0
 
 result_prompt				BYTE	"You entered the following numbers:"
 sum_prompt					BYTE	"The sum of these numbers is: "
 avg_prompt					BYTE	"The rounded average is: "
 
+;-----------------CONVERT STRING TO INT-----------------
 input_accumulator			BYTE	MAX_LENGTH DUP(?)
 BUFFER						BYTE	21 DUP(0)
 byteCount					DWORD	?
+result						DWORD	0	; make a local variable for final number to be saved
 
-result						DWORD	0	; make a local variable for final
+;-----------------CONVERT INT TO STRING-----------------
+int_string					BYTE	MAX_LENGTH DUP(?),0
+char_list					BYTE	"0123456789ABCDEF"
 
-number_string				BYTE	"0123456789",0
 
 .code
 main PROC
@@ -107,9 +110,11 @@ CALL	introduction
 
 			AND		EDX, 0Fh
 			MOV		result, EDX
-			IMUL	EBX
+			MOV		EAX, EBP
+			IMUL	EBX						; EAX = EAX * EBX
 			MOV		EDX, result			
 			JO		_errorMessage
+			MOV		EBP, EAX
 			add		EBP, EDX
 			JO		_errorMessage
 			;INC		ESI						; point to next character !!don't have too increment because LODSB does it for us
@@ -124,13 +129,47 @@ CALL	introduction
 	; print error message
 
 
+Call	CrLf
+Call	WriteInt ; test that the string is being converted properly
+Call	CrLf
+Call	CrLf
 
-Call WriteInt
+; write int in long hand
+MOV		ECX, 0
+MOV		EDI, offset int_string
+ADD		EDI, (MAX_LENGTH - 1)
+MOV		EBX, 10
+
+_divideLoop:
+	MOV		EDX, 0
+	DIV		EBX
+
+	XCHG	EAX, EDX						; swap the quotient and the remainder
+	PUSH	EBX
+	MOV		EBX, offset char_list
+	XLAT									; looks up the ASCII value from the char_list in EAX
+	POP		EBX
+
+	STOSB									; saves the ascii digit
+	DEC		EDI
+	DEC		EDI
+	XCHG	EAX, EDX						; swap the quotient and the remainder
+
+	INC		ECX
+	OR		EAX, EAX					
+	JNZ		_divideLoop						; if the quotient isn't 0, we need to divide again
+
+	; print the string
+	INC		EDI
+	MOV		EDX, EDI
+	call	WriteString
+; calculate results
+
 
 ;say goodbye
 PUSH	offset	goodbye
 CALL	say_goodbye
-
+CALL	CrLf
 	Invoke ExitProcess,0	; exit to operating system
 main ENDP
 

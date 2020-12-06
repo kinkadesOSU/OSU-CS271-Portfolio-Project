@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 19:45:49
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Page 1 - 1
 
 
@@ -121,7 +121,7 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
 	   64 20 6E 75 6D
 	   62 65 72 3A 20
 	   00
- 00000178 45 52 52 4F 52	error_message1				BYTE	"ERROR: You did not enter a signed number, or your number was too big."
+ 00000178 45 52 52 4F 52	error_message1				BYTE	"ERROR: You did not enter a signed number, or your number was too big.",0
 	   3A 20 59 6F 75
 	   20 64 69 64 20
 	   6E 6F 74 20 65
@@ -134,44 +134,51 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
 	   6E 75 6D 62 65
 	   72 20 77 61 73
 	   20 74 6F 6F 20
-	   62 69 67 2E
- 000001BD 50 6C 65 61 73	error_message2				BYTE	"Please try again: "
+	   62 69 67 2E 00
+ 000001BE 50 6C 65 61 73	error_message2				BYTE	"Please try again: ",0
 	   65 20 74 72 79
 	   20 61 67 61 69
-	   6E 3A 20
+	   6E 3A 20 00
 
- 000001CF 59 6F 75 20 65	result_prompt				BYTE	"You entered the following numbers:"
+ 000001D1 59 6F 75 20 65	result_prompt				BYTE	"You entered the following numbers:"
 	   6E 74 65 72 65
 	   64 20 74 68 65
 	   20 66 6F 6C 6C
 	   6F 77 69 6E 67
 	   20 6E 75 6D 62
 	   65 72 73 3A
- 000001F1 54 68 65 20 73	sum_prompt					BYTE	"The sum of these numbers is: "
+ 000001F3 54 68 65 20 73	sum_prompt					BYTE	"The sum of these numbers is: "
 	   75 6D 20 6F 66
 	   20 74 68 65 73
 	   65 20 6E 75 6D
 	   62 65 72 73 20
 	   69 73 3A 20
- 0000020E 54 68 65 20 72	avg_prompt					BYTE	"The rounded average is: "
+ 00000210 54 68 65 20 72	avg_prompt					BYTE	"The rounded average is: "
 	   6F 75 6E 64 65
 	   64 20 61 76 65
 	   72 61 67 65 20
 	   69 73 3A 20
 
- 00000226  0000000C [		input_accumulator			BYTE	MAX_LENGTH DUP(?)
+ 00000228  0000000C [		input_accumulator			BYTE	MAX_LENGTH DUP(?)
 	    00
 	   ]
- 00000232  00000015 [		BUFFER						BYTE	21 DUP(0)
+ 00000234  00000015 [		BUFFER						BYTE	21 DUP(0)
 	    00
 	   ]
- 00000247 00000000		byteCount					DWORD	?
+ 00000249 00000000		byteCount					DWORD	?
 
- 0000024B 00000000		result						DWORD	0	; make a local variable for final
 
- 0000024F 30 31 32 33 34	number_string				BYTE	"0123456789",0
+
+ 0000024D 00000000		result						DWORD	0	; make a local variable for final number to be saved
+ 00000251  0000000C [		int_string					BYTE	MAX_LENGTH DUP(?),0
+	    00
+	   ] 00
+ 0000025E 30 31 32 33 34	char_list					BYTE	"0123456789ABCDEF"
 	   35 36 37 38 39
-	   00
+	   41 42 43 44 45
+	   46
+
+				;number_string				BYTE	"0123456789",0
 
  00000000			.code
  00000000			main PROC
@@ -184,7 +191,7 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
  0000000F  68 00000082 R	PUSH	offset	instruction2
  00000014  68 000000CE R	PUSH	offset	instruction3
  00000019  68 00000121 R	PUSH	offset	instruction4
- 0000001E  E8 00000081		CALL	introduction
+ 0000001E  E8 000000CC		CALL	introduction
 
 
 				; read in the user's value
@@ -198,13 +205,13 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
  00000023  BA 00000159 R		MOV		EDX, OFFSET ENTER_INSTRUCTION
  00000028  E8 00000000 E		CALL	WriteString
 
- 0000002D  BA 00000232 R		MOV		EDX, OFFSET BUFFER
+ 0000002D  BA 00000234 R		MOV		EDX, OFFSET BUFFER
  00000032  B9 00000015			MOV		ECX, SIZEOF	BUFFER
  00000037  E8 00000000 E		CALL	ReadString				; gets the user's number as a string (need to convert to an int)
- 0000003C  A3 00000247 R		MOV		byteCount, EAX
- 00000041  8B 0D 00000247 R		MOV		ECX, byteCount			; moves the length of the string into ECX for the conversion steps
+ 0000003C  A3 00000249 R		MOV		byteCount, EAX
+ 00000041  8B 0D 00000249 R		MOV		ECX, byteCount			; moves the length of the string into ECX for the conversion steps
 
- 00000047  BE 00000232 R		MOV		ESI, OFFSET BUFFER		; moves the string to ESI so LODSB can iterate through it
+ 00000047  BE 00000234 R		MOV		ESI, OFFSET BUFFER		; moves the string to ESI so LODSB can iterate through it
 
 					; convert string to int
  0000004C  AC				LODSB							; puts a byte in AL
@@ -222,9 +229,9 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
 
  00000057				_noSignIndicated:
  00000057  3C 30				CMP		al, '0'
- 00000059  72 33				JB		_errorMessage
+ 00000059  72 37				JB		_errorMessage
  0000005B  3C 39				CMP		al, '9'
- 0000005D  77 2F				JA		_errorMessage
+ 0000005D  77 33				JA		_errorMessage
 
 
  0000005F  8A D0				MOV		dl, al						; preserve the character so we can use EAX later		
@@ -236,38 +243,74 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
 							; passes all checks, so we can convert the character to a digit
 
  00000070  83 E2 0F					AND		EDX, 0Fh
- 00000073  89 15 0000024B R				MOV		result, EDX
- 00000079  F7 EB					IMUL	EBX
- 0000007B  8B 15 0000024B R				MOV		EDX, result			
- 00000081  70 0B					JO		_errorMessage
- 00000083  03 EA					add		EBP, EDX
- 00000085  70 07					JO		_errorMessage
+ 00000073  89 15 0000024D R				MOV		result, EDX
+ 00000079  8B C5					MOV		EAX, EBP
+ 0000007B  F7 EB					IMUL	EBX						; EAX = EAX * EBX
+ 0000007D  8B 15 0000024D R				MOV		EDX, result			
+ 00000083  70 0D					JO		_errorMessage
+ 00000085  8B E8					MOV		EBP, EAX
+ 00000087  03 EA					add		EBP, EDX
+ 00000089  70 07					JO		_errorMessage
 							;INC		ESI						; point to next character !!don't have too increment because LODSB does it for us
- 00000087  AC						LODSB							; load character to al
- 00000088  8A D0					MOV		dl, al					; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
- 0000008A  E2 E4					LOOP		_outerConversionLoop
+ 0000008B  AC						LODSB							; load character to al
+ 0000008C  8A D0					MOV		dl, al					; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl
+ 0000008E  E2 E0					LOOP		_outerConversionLoop
 
- 0000008C  8B C5			MOV		EAX, EBP						; EBP has been holding the result, but EAX will need it for WriteInt
+ 00000090  8B C5			MOV		EAX, EBP						; EBP has been holding the result, but EAX will need it for WriteInt
 							
 					
- 0000008E				_errorMessage:
+ 00000092				_errorMessage:
 					; print error message
 
 
+ 00000092  E8 00000000 E	Call	CrLf
+ 00000097  E8 00000000 E	Call	WriteInt ; test that the string is being converted properly
+ 0000009C  E8 00000000 E	Call	CrLf
+ 000000A1  E8 00000000 E	Call	CrLf
 
- 0000008E  E8 00000000 E	Call WriteInt
+				; write int in long hand
+ 000000A6  B9 00000000		MOV		ECX, 0
+ 000000AB  BF 00000251 R	MOV		EDI, offset int_string
+ 000000B0  83 C7 0B		ADD		EDI, (MAX_LENGTH - 1)
+ 000000B3  BB 0000000A		MOV		EBX, 10
+
+ 000000B8			_divideLoop:
+ 000000B8  BA 00000000			MOV		EDX, 0
+ 000000BD  F7 F3			DIV		EBX
+
+ 000000BF  92				XCHG	EAX, EDX						; swap the quotient and the remainder
+ 000000C0  53				PUSH	EBX
+ 000000C1  BB 0000025E R		MOV		EBX, offset char_list
+ 000000C6  D7				XLAT									; looks up the ASCII value from the char_list in EAX
+ 000000C7  5B				POP		EBX
+
+ 000000C8  AA				STOSB									; saves the ascii digit
+ 000000C9  4F				DEC		EDI
+ 000000CA  4F				DEC		EDI
+ 000000CB  92				XCHG	EAX, EDX						; swap the quotient and the remainder
+
+ 000000CC  41				INC		ECX
+ 000000CD  0B C0			OR		EAX, EAX					
+ 000000CF  75 E7			JNZ		_divideLoop						; if the quotient isn't 0, we need to divide again
+
+					; print the string
+ 000000D1  47				INC		EDI
+ 000000D2  8B D7			MOV		EDX, EDI
+ 000000D4  E8 00000000 E		call	WriteString
+				; calculate results
+
 
 				;say goodbye
- 00000093  68 00000145 R	PUSH	offset	goodbye
- 00000098  E8 00000063		CALL	say_goodbye
-
+ 000000D9  68 00000145 R	PUSH	offset	goodbye
+ 000000DE  E8 00000068		CALL	say_goodbye
+ 000000E3  E8 00000000 E	CALL	CrLf
 					Invoke ExitProcess,0	; exit to operating system
- 0000009D  6A 00	   *	    push   +000000000h
- 0000009F  E8 00000000 E   *	    call   ExitProcess
- 000000A4			main ENDP
+ 000000E8  6A 00	   *	    push   +000000000h
+ 000000EA  E8 00000000 E   *	    call   ExitProcess
+ 000000EF			main ENDP
 
 				; (insert additional procedures here)
- 000000A4			introduction PROC
+ 000000EF			introduction PROC
  = [EBP + 28]				INTRO_1				EQU		[EBP + 28]
  = [EBP + 24]				INTRO_2				EQU		[EBP + 24]
  = [EBP + 20]				INSTRUCTION_1		EQU		[EBP + 20]
@@ -275,56 +318,56 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
  = [EBP + 12]				INSTRUCTION_3		EQU		[EBP + 12]
  = [EBP + 8]				INSTRUCTION_4		EQU		[EBP + 8]
 
- 000000A4  55				PUSH	EBP						; store stack frame reference
- 000000A5  8B EC			MOV		EBP, ESP		
- 000000A7  8B 55 1C			MOV		EDX, INTRO_1
- 000000AA  E8 00000000 E		CALL	WriteString
- 000000AF  E8 00000000 E		CALL	CrLf
- 000000B4  8B 55 18			MOV		EDX, INTRO_2
- 000000B7  E8 00000000 E		CALL	WriteString
- 000000BC  E8 00000000 E		CALL	CrLf
- 000000C1  E8 00000000 E		CALL	CrLf
- 000000C6  8B 55 14			MOV		EDX, INSTRUCTION_1
- 000000C9  E8 00000000 E		CALL	WriteString
- 000000CE  E8 00000000 E		CALL	CrLf
- 000000D3  8B 55 10			MOV		EDX, INSTRUCTION_2
- 000000D6  E8 00000000 E		CALL	WriteString
- 000000DB  E8 00000000 E		CALL	CrLf
- 000000E0  8B 55 0C			MOV		EDX, INSTRUCTION_3
- 000000E3  E8 00000000 E		CALL	WriteString
- 000000E8  E8 00000000 E		CALL	CrLf
- 000000ED  8B 55 08			MOV		EDX, INSTRUCTION_4
- 000000F0  E8 00000000 E		CALL	WriteString
- 000000F5  E8 00000000 E		CALL	CrLf
+ 000000EF  55				PUSH	EBP						; store stack frame reference
+ 000000F0  8B EC			MOV		EBP, ESP		
+ 000000F2  8B 55 1C			MOV		EDX, INTRO_1
+ 000000F5  E8 00000000 E		CALL	WriteString
+ 000000FA  E8 00000000 E		CALL	CrLf
+ 000000FF  8B 55 18			MOV		EDX, INTRO_2
+ 00000102  E8 00000000 E		CALL	WriteString
+ 00000107  E8 00000000 E		CALL	CrLf
+ 0000010C  E8 00000000 E		CALL	CrLf
+ 00000111  8B 55 14			MOV		EDX, INSTRUCTION_1
+ 00000114  E8 00000000 E		CALL	WriteString
+ 00000119  E8 00000000 E		CALL	CrLf
+ 0000011E  8B 55 10			MOV		EDX, INSTRUCTION_2
+ 00000121  E8 00000000 E		CALL	WriteString
+ 00000126  E8 00000000 E		CALL	CrLf
+ 0000012B  8B 55 0C			MOV		EDX, INSTRUCTION_3
+ 0000012E  E8 00000000 E		CALL	WriteString
+ 00000133  E8 00000000 E		CALL	CrLf
+ 00000138  8B 55 08			MOV		EDX, INSTRUCTION_4
+ 0000013B  E8 00000000 E		CALL	WriteString
+ 00000140  E8 00000000 E		CALL	CrLf
 
 					; clean up stack
- 000000FA  8B E5			mov		ESP, EBP
- 000000FC  5D				pop		EBP
- 000000FD  C2 0018			ret		24
+ 00000145  8B E5			mov		ESP, EBP
+ 00000147  5D				pop		EBP
+ 00000148  C2 0018			ret		24
 
- 00000100			introduction ENDP
+ 0000014B			introduction ENDP
 
 
 
- 00000100			say_goodbye PROC
+ 0000014B			say_goodbye PROC
  = [EBP + 8]				GOOD_BYE		EQU		[EBP + 8]
 					
- 00000100  55				PUSH	EBP						; store stack frame reference
- 00000101  8B EC			MOV		EBP, ESP	
- 00000103  8B 55 08			MOV		EDX, GOOD_BYE
- 00000106  E8 00000000 E		CALL	WriteString
- 0000010B  E8 00000000 E		CALL	CrLF
+ 0000014B  55				PUSH	EBP						; store stack frame reference
+ 0000014C  8B EC			MOV		EBP, ESP	
+ 0000014E  8B 55 08			MOV		EDX, GOOD_BYE
+ 00000151  E8 00000000 E		CALL	WriteString
+ 00000156  E8 00000000 E		CALL	CrLF
 
 					; clean up stack
- 00000110  8B E5			mov		ESP, EBP
- 00000112  5D				pop		EBP
- 00000113  C2 0004			ret		4
+ 0000015B  8B E5			mov		ESP, EBP
+ 0000015D  5D				pop		EBP
+ 0000015E  C2 0004			ret		4
 
- 00000116			say_goodbye ENDP
+ 00000161			say_goodbye ENDP
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 11:39:43
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/05/20 19:45:49
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Symbols 2 - 1
 
 
@@ -418,8 +461,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 0000025A Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 00000116 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 0000026E Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 00000161 Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -526,14 +569,15 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-introduction . . . . . . . . . .	P Near	 000000A4 _TEXT	Length= 0000005C Public STDCALL
-main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 000000A4 Public STDCALL
+introduction . . . . . . . . . .	P Near	 000000EF _TEXT	Length= 0000005C Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 000000EF Public STDCALL
   _checkPositive . . . . . . . .	L Near	 00000051 _TEXT	
   _noSignIndicated . . . . . . .	L Near	 00000057 _TEXT	
   _outerConversionLoop . . . . .	L Near	 00000070 _TEXT	
-  _errorMessage  . . . . . . . .	L Near	 0000008E _TEXT	
+  _errorMessage  . . . . . . . .	L Near	 00000092 _TEXT	
+  _divideLoop  . . . . . . . . .	L Near	 000000B8 _TEXT	
 printf . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
-say_goodbye  . . . . . . . . . .	P Near	 00000100 _TEXT	Length= 00000016 Public STDCALL
+say_goodbye  . . . . . . . . . .	P Near	 0000014B _TEXT	Length= 00000016 Public STDCALL
 scanf  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 wsprintfA  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 
@@ -552,7 +596,7 @@ Symbols:
 @fardata . . . . . . . . . . . .	Text   	 FLAT
 @stack . . . . . . . . . . . . .	Text   	 FLAT
 ALT_MASK . . . . . . . . . . . .	Number	 00000003h   
-BUFFER . . . . . . . . . . . . .	Byte	 00000232 _DATA	
+BUFFER . . . . . . . . . . . . .	Byte	 00000234 _DATA	
 CAPSLOCK_ON  . . . . . . . . . .	Number	 00000080h   
 CREATE_ALWAYS  . . . . . . . . .	Number	 00000002h   
 CREATE_NEW . . . . . . . . . . .	Number	 00000001h   
@@ -760,24 +804,26 @@ VK_UP  . . . . . . . . . . . . .	Number	 00000026h
 WINDOW_BUFFER_SIZE_EVENT . . . .	Number	 00000004h   
 WriteConsoleOutputCharacter  . .	Text   	 WriteConsoleOutputCharacterA
 WriteConsole . . . . . . . . . .	Text   	 WriteConsoleA
-avg_prompt . . . . . . . . . . .	Byte	 0000020E _DATA	
+avg_prompt . . . . . . . . . . .	Byte	 00000210 _DATA	
 black  . . . . . . . . . . . . .	Number	 00000000h   
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
-byteCount  . . . . . . . . . . .	DWord	 00000247 _DATA	
+byteCount  . . . . . . . . . . .	DWord	 00000249 _DATA	
+char_list  . . . . . . . . . . .	Byte	 0000025E _DATA	
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
 enter_instruction  . . . . . . .	Byte	 00000159 _DATA	
 error_message1 . . . . . . . . .	Byte	 00000178 _DATA	
-error_message2 . . . . . . . . .	Byte	 000001BD _DATA	
+error_message2 . . . . . . . . .	Byte	 000001BE _DATA	
 exit . . . . . . . . . . . . . .	Text   	 INVOKE ExitProcess,0
 goodbye  . . . . . . . . . . . .	Byte	 00000145 _DATA	
 gray . . . . . . . . . . . . . .	Number	 00000008h   
 green  . . . . . . . . . . . . .	Number	 00000002h   
-input_accumulator  . . . . . . .	Byte	 00000226 _DATA	
+input_accumulator  . . . . . . .	Byte	 00000228 _DATA	
 instruction1 . . . . . . . . . .	Byte	 00000057 _DATA	
 instruction2 . . . . . . . . . .	Byte	 00000082 _DATA	
 instruction3 . . . . . . . . . .	Byte	 000000CE _DATA	
 instruction4 . . . . . . . . . .	Byte	 00000121 _DATA	
+int_string . . . . . . . . . . .	Byte	 00000251 _DATA	
 intro1 . . . . . . . . . . . . .	Byte	 00000000 _DATA	
 intro2 . . . . . . . . . . . . .	Byte	 0000003D _DATA	
 lightBlue  . . . . . . . . . . .	Number	 00000009h   
@@ -787,11 +833,10 @@ lightGreen . . . . . . . . . . .	Number	 0000000Ah
 lightMagenta . . . . . . . . . .	Number	 0000000Dh   
 lightRed . . . . . . . . . . . .	Number	 0000000Ch   
 magenta  . . . . . . . . . . . .	Number	 00000005h   
-number_string  . . . . . . . . .	Byte	 0000024F _DATA	
 red  . . . . . . . . . . . . . .	Number	 00000004h   
-result_prompt  . . . . . . . . .	Byte	 000001CF _DATA	
-result . . . . . . . . . . . . .	DWord	 0000024B _DATA	
-sum_prompt . . . . . . . . . . .	Byte	 000001F1 _DATA	
+result_prompt  . . . . . . . . .	Byte	 000001D1 _DATA	
+result . . . . . . . . . . . . .	DWord	 0000024D _DATA	
+sum_prompt . . . . . . . . . . .	Byte	 000001F3 _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
 wsprintf . . . . . . . . . . . .	Text   	 wsprintfA
 yellow . . . . . . . . . . . . .	Number	 0000000Eh   
