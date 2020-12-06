@@ -13,7 +13,7 @@ INCLUDE Irvine32.inc
 ; (insert macro definitions here)
 
 ; (insert constant definitions here)
-MAX_LENGTH = 12 ; 10 digits + a sign + null terminator
+MAX_LENGTH = 10 ; 10 digits + a sign + null terminator
 
 .data
 
@@ -42,7 +42,8 @@ input_accumulator			BYTE	MAX_LENGTH DUP(?)
 BUFFER						BYTE	21 DUP(0)
 byteCount					DWORD	?
 ;result						DWORD	0	; make a local variable for final number to be saved
-
+LOCAL_ERROR1				EQU DWORD PTR [EBP - 4]
+LOCAL_ERROR2				EQU DWORD PTR [EBP - 8]
 ;-----------------CONVERT INT TO STRING-----------------
 int_string					BYTE	MAX_LENGTH DUP(?),0
 char_list					BYTE	"0123456789ABCDEF"
@@ -77,12 +78,75 @@ Call	CrLf
 Call	WriteInt ; test that the string is being converted properly
 Call	CrLf
 Call	CrLf
+
+
+MOV		ECX, 0
+MOV		EDI, offset int_string
+ADD		EDI, (MAX_LENGTH-1)
+MOV		EBX, 10
+		
+CMP		EAX, 0
+JG		_divideLoop
+NEG		EAX						; make the negative number positive
+MOV		sign_indicator, 1
+
+
+ _divideLoop:
+ 	MOV		EDX, 0
+ 	DIV		EBX
+
+ 	XCHG	EAX, EDX						; swap the quotient and the remainder
+ 	PUSH	EBX
+ 	MOV		EBX, offset char_list
+ 	XLAT									; looks up the ASCII value from the char_list in EAX
+ 	POP		EBX
+
+ 	MOV		[EDI], al									; saves the ascii digit
+ 	;DEC		EDI
+ 	DEC		EDI
+ 	XCHG	EAX, EDX						; swap the quotient and the remainder
+
+ 	INC		ECX
+ 	CMP		EAX, 0					
+ 	JNZ		_divideLoop						; if the quotient isn't 0, we need to divide again
+
+
+	; add negative sign if needed
+	CMP		sign_indicator, 1				; 1 means the sign is negative
+	JNE		_printString
+	INC		ECX								; increment ECX to tell WriteString that there is 1 more character to print
+	MOV		BYTE PTR[EDI], "-"
+	DEC		EDI
+
+ 	; print the string
+ 	_printString:
+	MOV		EDX, OFFSET result_prompt
+	CALL	WriteString
+	
+	INC		EDI								; skip the sign bit (should be empty for a positive number)
+ 	MOV		EDX, EDI						; move pointer for the string to EDX for WriteString
+ 	CALL	WriteString
+	CALL	CrLf
+ ; calculate results
+
+
+
+
+
+
+
 ;------------DELETE AT FINAL----------------------------------------
 
+
+
+
+
+
+
 ;PUSH	sign_indicator
-PUSH	OFFSET result_prompt
-PUSH	EAX							; has number to convert
-CALL	convert_int_to_string
+;PUSH	OFFSET result_prompt
+;PUSH	EAX							; has number to convert
+;CALL	convert_int_to_string
 
 ; calculate results
 
@@ -143,7 +207,19 @@ convert_string_to_int PROC
 
 	PUSH	EBP						; store stack frame reference
 	MOV		EBP, ESP
-	PUSH	EBP
+	SUB		ESP, 8					; reserve space for locals
+	
+	MOV		EAX, ERROR1
+	MOV		LOCAL_ERROR1, EAX
+	MOV		EAX, ERROR2
+	MOV		LOCAL_ERROR2, EAX
+	PUSH	EBP						; save stack pointer because EBP is going to be used later
+
+	MOV		EAX, ERROR1
+	MOV		LOCAL_ERROR1, EAX
+
+	MOV		EAX, ERROR2
+	MOV		LOCAL_ERROR2, EAX
 
 	; give the user some instructions
 	MOV		EDX, USER_INSTRUCTION
@@ -153,7 +229,7 @@ convert_string_to_int PROC
 		MOV		EDX, STRING_BUFFER
 		MOV		ECX, SIZEOF_STRING_BUFFER
 		CALL	ReadString					; gets the user's number as a string (need to convert to an int)
-		MOV		ECX, EAX					; moves y into ECX for the conversion steps
+		MOV		ECX, EAX					; moves number of bytes into ECX for the conversion steps
 		MOV		ESI, STRING_BUFFER			; moves the string to ESI so LODSB can iterate through it
 
 		; convert string to int
@@ -223,12 +299,15 @@ convert_string_to_int PROC
 
 	_errorMessage:
 	; print error message
-		MOV		EDX, ERROR1
+		POP		EAX
+		MOV		EBP, EAX
+		MOV		EDX, LOCAL_ERROR1
 		CALL	WriteString
 		CALL	CrLf
-		MOV		EDX, ERROR2
+		MOV		EDX, LOCAL_ERROR2
 		CALL	WriteString
 		JMP		_enterValue
+		PUSH	EBP
 
 	_endProcedure:
 	mov		ESP, EBP
