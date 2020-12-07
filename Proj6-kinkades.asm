@@ -65,25 +65,34 @@ CALL	introduction
 
 
 ; read in the user's value
-;PUSH	OFFSET	user_input_array
-PUSH	OFFSET	error_message1
-PUSH	OFFSET	error_message2
-PUSH	OFFSET	enter_instruction
-PUSH	OFFSET	BUFFER
-PUSH	SIZEOF	BUFFER
-CALL	convert_string_to_int	
+MOV		ECX, 10						; accept 10 strings
+_inputLoop:
+
+	;PUSH	ECX							; save counter
+	PUSH	OFFSET	user_input_array
+	PUSH	OFFSET	error_message1
+	PUSH	OFFSET	error_message2
+	PUSH	OFFSET	enter_instruction
+	PUSH	OFFSET	BUFFER
+	PUSH	SIZEOF	BUFFER
+	CALL	convert_string_to_int	
+	;POP		ECX							; restore counter
+	;LOOP	_inputLoop
+	
 
 
 
 PUSH	sign_indicator				; to flip the sign
-PUSH	OFFSET char_list			; lookup list for ASCII conversion
+;PUSH	OFFSET char_list			; lookup list for ASCII conversion
 PUSH	OFFSET int_string			; address to place the converted integer
 PUSH	OFFSET result_prompt
 PUSH	EAX							; has number to convert
 CALL	convert_int_to_string
 
-; calculate results
-
+; calculate the sum and average
+PUSH	OFFSET	result_prompt
+PUSH	OFFSET	user_input_array	; array to sum
+CALL	calculate_sum_and_average
 
 ;say goodbye
 PUSH	offset	goodbye
@@ -132,34 +141,38 @@ introduction ENDP
 
 convert_string_to_int PROC
 
-	;LIST_OF_NUMBERS				EQU [EBP + 28]
+	LIST_OF_NUMBERS				EQU [EBP + 28]
 	ERROR1						EQU [EBP + 24]
 	ERROR2						EQU	[EBP + 20]
 	USER_INSTRUCTION			EQU [EBP + 16]
 	STRING_BUFFER				EQU [EBP + 12]
 	SIZEOF_STRING_BUFFER		EQU [EBP + 8]
 
+	;LIST_OF_NUMBERS_LOCAL	EQU	DWORD PTR [EBP - 4]
+
 	PUSH	EBP						; store stack frame reference
 	MOV		EBP, ESP
+	
 	SUB		ESP, 8					; reserve space for locals
 	
+	MOV		EBX, LIST_OF_NUMBERS
 	MOV		EAX, ERROR1
 	MOV		LOCAL_ERROR1, EAX
 	MOV		EAX, ERROR2
 	MOV		LOCAL_ERROR2, EAX
+	
 	PUSH	EBP						; save stack pointer because EBP is going to be used later
+	PUSH	EBX						; pushes first location of the array to write numbers into
 
-	MOV		EAX, ERROR1
-	MOV		LOCAL_ERROR1, EAX
-
-	MOV		EAX, ERROR2
-	MOV		LOCAL_ERROR2, EAX
-
-	; give the user some instructions
-	MOV		EDX, USER_INSTRUCTION
-	CALL	WriteString
-
+	MOV		ECX, 10					; loop counter to get 10 strings
+	
 	_enterValue:
+		PUSH	ECX						; save loop counter
+		; give the user some instructions
+		MOV		EDX, USER_INSTRUCTION
+		CALL	WriteString
+
+		; set up registers and read the value (MACRO)
 		MOV		EDX, STRING_BUFFER
 		MOV		ECX, SIZEOF_STRING_BUFFER
 		CALL	ReadString					; gets the user's number as a string (need to convert to an int)
@@ -182,8 +195,8 @@ convert_string_to_int PROC
 		
 		_checkPositive:
 			CMP		dl, "+"
-			JNE		_noSignIndicated	; assume the number is positive if the user didn't specify
-			MOV		EBP, 1				
+			JNE		_noSignIndicated		; assume the number is positive if the user didn't specify
+			MOV		EBP, 1					
 			
 			LODSB							; load the next digit
 			MOV		dl, al					; preserve the character so we can use EAX later
@@ -195,16 +208,20 @@ convert_string_to_int PROC
 			CMP		dl, '9'
 			JA		_errorMessage
 
+			POP		EBX						; has loop counter from stack
+			POP		EDI						; location of array to store numbers
 			POP		EAX						; get the stack pointer off the stack
+			PUSH	EBX						; shuffle loop counter on the stack
 			PUSH	EBP						; +/- 1
-			MOV		EBP, EAX
+			PUSH	EDI						; location of array to store numbers
 
-			PUSH	EBP						; has our stack pointer, but is also being used for the calculation
+			PUSH	EAX ; EBP						; has our stack pointer, but is also being used for the calculation
 			MOV		EBP, 0					; use EBP for calc because EAX is locked up
 			MOV		EAX, 0
 			MOV		EBX, 10
 
-		_conversionLoop:
+			;PUSH	ECX						; pushes length of byte for conversion and store loop	
+		_conversionLoop:			
 			; passes sign checks. This loop then iterates through each character. Need to verify that the character is a digit so we can convert the character to a digit
 			; check new digit
 			CMP		dl, '0'
@@ -214,7 +231,7 @@ convert_string_to_int PROC
 			
 			; convert
 			AND		EDX, 0Fh
-			PUSH	EDX								; save EDX because IMUL messes with it
+			PUSH	EDX								; save EDX because IMUL messes with it. EDX contains the digit being converted
 			MOV		EAX, EBP						; EBP has 0 on the first pass. It then increases by a factor for 10 each round
 			IMUL	EBX								; EAX = EAX * EBX
 			POP		EDX								; bring EDX back
@@ -226,16 +243,33 @@ convert_string_to_int PROC
 			LODSB									; load character to al
 			MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl		
 			LOOP		_conversionLoop
-
-		;MOV		EDI, LIST_OF_NUMBERS			; offset to address of array that will hold the ten
+			
 		MOV		EAX, EBP							; EBP has been holding the result, but EAX will need it for WriteInt
-		;STOSB										; stores the byte. USES EDI!!!!!!!!!
-		
-		POP		EBP									; EBP has the old stack pointer value	
-		MOV		EDI, EBP							; preserve it because EDI is going to be used
+		;POP		ECX									; restore loop counter. Will be however many bytes are in the string that was just converted
+		POP		EBP									; stack pointer
+		MOV		EDI, EBP							; preserve EBP because EBP is going to be used
+		POP		EBX									; location of array to store numbers
 		POP		EBP									; EBP should have the +/- 1
 		IMUL	EBP									; EAX * EBP ( +/- 1)
 		MOV		EBP, EDI							; restore stack pointer to EBP
+		
+		; store the digit
+		MOV		EDI, EBX									; offset to address of array that will hold the ten
+		MOV		[EDI], EAX
+		ADD		EDI, 4
+
+		;_storeLoop:
+		;	STOSB										; stores the byte. USES EDI!!!!!!!!!	
+		;	LOOP	_storeLoop
+			
+		POP		ECX								; restore outer loop counter
+		PUSH	EBP
+		PUSH	EDI
+		;PUSH	ECX
+		DEC		ECX
+		JNZ		_enterValue
+		;LOOP	_enterValue								; get the next value and repeat
+
 		JMP		_endProcedure
 
 	_errorMessage:
@@ -250,18 +284,27 @@ convert_string_to_int PROC
 		PUSH	EBP
 		JMP		_enterValue
 		;PUSH	EBP
-
+	
 	_endProcedure:
 	mov		ESP, EBP
 	pop		EBP
-	ret		20
+	ret		24
 
 convert_string_to_int ENDP
 
 
-convert_int_to_string PROC
-	INT_SIGN			EQU		[EBP + 24]			; make shift sign flag		
-	LOOKUP_LIST			EQU		[EBP + 20]			; offset to char_list
+calculate_sum_and_average PROC
+
+
+
+
+calculate_sum_and_average ENDP
+
+
+
+
+convert_int_to_string PROC ; also prints out the list of what the user entered
+	INT_SIGN			EQU		[EBP + 20]			; make shift sign flag		
 	CONVERTED_STRING	EQU		[EBP + 16]			; string that holds the converted integer
 	USER_MESSAGE		EQU		[EBP + 12]			; offset to result_prompt
 	NUMBER_TO_CONVERT	EQU		[EBP + 8]
@@ -297,10 +340,11 @@ convert_int_to_string PROC
  		DIV		EBX
 
  		XCHG	EAX, EDX							; swap the quotient and the remainder
-		PUSH	EBX
- 		MOV		EBX, LOOKUP_LIST					; offset char_list
- 		XLAT										; looks up the ASCII value from the char_list in EAX
- 		POP		EBX
+		ADD		AL, '0'
+		;PUSH	EBX
+ 		;MOV		EBX, LOOKUP_LIST					; offset char_list
+ 		;XLAT										; looks up the ASCII value from the char_list in EAX
+ 		;POP		EBX
 
  		MOV		[EDI], al							; saves the ascii digit
  		;DEC		EDI
