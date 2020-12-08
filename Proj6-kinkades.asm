@@ -11,6 +11,26 @@ TITLE Designing low-level I/O procedures      (Proj6-kinkades.asm)
 INCLUDE Irvine32.inc
 
 ; (insert macro definitions here)
+mGetString MACRO printMe, size_of_printMe
+
+	PUSH	ECX
+	PUSH	EDX
+	MOV		EDX, OFFSET printMe
+	MOV		ECX, SIZEOF	printME
+	CALL	ReadString
+	POP		EDX
+	POP		ECX
+
+ENDM
+
+mDisplayString MACRO buffer
+
+	PUSH	EDX
+	MOV		EDX,  buffer
+	CALL	WriteString
+	POP		EDX
+
+ENDM
 
 ; (insert constant definitions here)
 MAX_LENGTH = 10 ; 10 digits + a sign + null terminator
@@ -178,6 +198,8 @@ ReadVal PROC
 		MOV		ECX, EAX					; moves number of bytes into ECX for the conversion steps
 		MOV		ESI, STRING_BUFFER			; moves the string to ESI so LODSB can iterate through it
 
+;		mGetString	STRING_BUFFER, SIZEOF_STRING_BUFFER
+
 		; convert string to int
 		LODSB								; puts a byte in AL
 		MOV		dl, al						; preserve the character so we can use EAX later
@@ -334,11 +356,16 @@ calculate_sum_and_average PROC
 	CALL	CrLf
 	MOV		EDX, SUM_RESULT_PROMPT
 	CALL	WriteString
-	CALL	WriteInt
+	CALL	WriteDec
 	CALL	CrLf
 	MOV		EDX, AVG_RESULT_PROMPT
 	CALL	WriteString
 
+	; calculate average
+	CDQ
+	MOV		EBX, 10
+	IDIV	EBX
+	Call	WriteDec
 	CALL	CrLf
 
 	MOV		ESP, EBP
@@ -358,6 +385,7 @@ WriteVal PROC ; also prints out the list of what the user entered
 	CONVERT_LIST		EQU		[EBP + 8]
 	
 	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
+	MACRO_STRING		EQU	DWORD PTR [EBP - 8]
 
 	PUSH	EBP										; store stack frame reference
 	MOV		EBP, ESP	
@@ -372,6 +400,7 @@ WriteVal PROC ; also prints out the list of what the user entered
 	; print result message so the references stay ok
 	MOV		EDX, USER_MESSAGE
 	CALL	WriteString
+	CALL	CrLf
 
 	MOV		EDI, CONVERT_LIST
 	MOV		ECX, 10										; loop for printing
@@ -380,19 +409,17 @@ WriteVal PROC ; also prints out the list of what the user entered
 	_printLoop:
 		PUSH	ECX
 		MOV		ECX, 0									; counter for WriteString
-		;MOV		EDI, CONVERT_LIST						; offset of list of 10 integers to convert back to string
 		MOV		EAX, [EDI]								; move number to convert to EAX
 		PUSH	EDI										; save the address of the number being converted
 
 		MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
-		;ADD		EDI, (MAX_LENGTH-1)
-	
 		MOV		EBX, 10	
 		CMP		EAX, 0									; check if the number is negative
 		JG		_divideLoop
 		NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
 		MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
 
+		
 		 _divideLoop:
  			MOV		EDX, 0
  			DIV		EBX
@@ -420,15 +447,26 @@ WriteVal PROC ; also prints out the list of what the user entered
  		; print the string
  		_printString:
 			INC		EDI									; skip the sign bit (should be empty for a positive number)
- 			MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
- 			CALL	WriteString
-			MOV		EDX, DELIMITER
-			CALL	WriteString
-			;CALL	CrLf
-		
-		POP		EDI
+ 			;MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
+ 			;CALL	WriteString
+
+			;MOV		MACRO_STRING, USER_MESSAGE
+
+			mDisplayString	EDI
+
+			POP		EDI
+			POP		ECX
+
+			CMP		ECX, 1								; if it's the last item, don't print a comma
+			JNE		_printComma
+			JMP		_continue
+			_printComma:
+				;MOV		EDX, DELIMITER
+				;CALL	WriteString
+				mDisplayString	DELIMITER
+
+		_continue:
 		ADD		EDI, 4
-		POP		ECX
 		LOOP	_printLoop
 
 	; clean up stack
