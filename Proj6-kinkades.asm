@@ -46,7 +46,6 @@ LOCAL_ERROR2				EQU DWORD PTR [EBP - 8]
 
 ;-----------------CONVERT INT TO STRING-----------------
 int_string					BYTE	MAX_LENGTH DUP(?),0
-char_list					BYTE	"0123456789"
 sign_indicator				DWORD	0						; need a boolean to tell us which sign the number is. Can't use the sign flag since it's controlled by the system. Assume it's a positive number to start (makes life easier)
 
 
@@ -68,7 +67,6 @@ CALL	introduction
 MOV		ECX, 10						; accept 10 strings
 _inputLoop:
 
-	;PUSH	ECX							; save counter
 	PUSH	OFFSET	user_input_array
 	PUSH	OFFSET	error_message1
 	PUSH	OFFSET	error_message2
@@ -76,14 +74,12 @@ _inputLoop:
 	PUSH	OFFSET	BUFFER
 	PUSH	SIZEOF	BUFFER
 	CALL	convert_string_to_int	
-	;POP		ECX							; restore counter
-	;LOOP	_inputLoop
+
 	
 
 
 
 PUSH	sign_indicator				; to flip the sign
-;PUSH	OFFSET char_list			; lookup list for ASCII conversion
 PUSH	OFFSET int_string			; address to place the converted integer
 PUSH	OFFSET result_prompt
 PUSH	EAX							; has number to convert
@@ -148,8 +144,6 @@ convert_string_to_int PROC
 	STRING_BUFFER				EQU [EBP + 12]
 	SIZEOF_STRING_BUFFER		EQU [EBP + 8]
 
-	;LIST_OF_NUMBERS_LOCAL	EQU	DWORD PTR [EBP - 4]
-
 	PUSH	EBP						; store stack frame reference
 	MOV		EBP, ESP
 	
@@ -208,6 +202,7 @@ convert_string_to_int PROC
 			CMP		dl, '9'
 			JA		_errorMessage
 
+			; shuffle the stack to get values in the proper position
 			POP		EBX						; has loop counter from stack
 			POP		EDI						; location of array to store numbers
 			POP		EAX						; get the stack pointer off the stack
@@ -215,12 +210,11 @@ convert_string_to_int PROC
 			PUSH	EBP						; +/- 1
 			PUSH	EDI						; location of array to store numbers
 
-			PUSH	EAX ; EBP						; has our stack pointer, but is also being used for the calculation
+			PUSH	EAX						; has our stack pointer, but is also being used for the calculation
 			MOV		EBP, 0					; use EBP for calc because EAX is locked up
 			MOV		EAX, 0
 			MOV		EBX, 10
 
-			;PUSH	ECX						; pushes length of byte for conversion and store loop	
 		_conversionLoop:			
 			; passes sign checks. This loop then iterates through each character. Need to verify that the character is a digit so we can convert the character to a digit
 			; check new digit
@@ -236,16 +230,16 @@ convert_string_to_int PROC
 			IMUL	EBX								; EAX = EAX * EBX
 			POP		EDX								; bring EDX back
 		
-			JO		_errorMessage					; check if EDX has overflowed (result of the multiplication by 10)
+			JO		_overflow						; check if EDX has overflowed (result of the multiplication by 10)
 			MOV		EBP, EAX
 			add		EBP, EDX						; bring pointer back
-			JO		_errorMessage					; checks if EBP has overflowed (has the result)
+			JO		_overflow						; checks if EBP has overflowed (has the result)
 			LODSB									; load character to al
 			MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl		
-			LOOP		_conversionLoop
+			LOOP	_conversionLoop
 			
 		MOV		EAX, EBP							; EBP has been holding the result, but EAX will need it for WriteInt
-		;POP		ECX									; restore loop counter. Will be however many bytes are in the string that was just converted
+
 		POP		EBP									; stack pointer
 		MOV		EDI, EBP							; preserve EBP because EBP is going to be used
 		POP		EBX									; location of array to store numbers
@@ -257,10 +251,6 @@ convert_string_to_int PROC
 		MOV		EDI, EBX									; offset to address of array that will hold the ten
 		MOV		[EDI], EAX
 		ADD		EDI, 4
-
-		;_storeLoop:
-		;	STOSB										; stores the byte. USES EDI!!!!!!!!!	
-		;	LOOP	_storeLoop
 			
 		POP		ECX								; restore outer loop counter
 		PUSH	EBP
@@ -274,17 +264,43 @@ convert_string_to_int PROC
 
 	_errorMessage:
 	; print error message
-		POP		EAX
-		MOV		EBP, EAX
+		POP		ECX										; unload the stack
+		POP		EAX										; unload the stack
+
+		POP		EAX										; get stack pointer off
+		MOV		EBP, EAX								; move to EBP for the local variables
 		MOV		EDX, LOCAL_ERROR1
 		CALL	WriteString
 		CALL	CrLf
 		MOV		EDX, LOCAL_ERROR2
 		CALL	WriteString
-		PUSH	EBP
-		JMP		_enterValue
-		;PUSH	EBP
+		CALL	CrLf
 	
+		; set up stack for another try
+		PUSH	EBP										
+		MOV		EBX, LIST_OF_NUMBERS
+		PUSH	EBX
+		JMP		_enterValue
+	
+	_overflow:
+		POP		EBP						; stack pointer
+		POP		ECX						; location of converted array
+		POP		ECX						; + / - 1
+		POP		ECX						; loop counter
+
+		MOV		EDX, LOCAL_ERROR1
+		CALL	WriteString
+		CALL	CrLf
+		MOV		EDX, LOCAL_ERROR2
+		CALL	WriteString
+		CALL	CrLf
+
+		; set up stack for another try
+		PUSH	EBP										
+		MOV		EBX, LIST_OF_NUMBERS
+		PUSH	EBX
+		JMP		_enterValue
+
 	_endProcedure:
 	mov		ESP, EBP
 	pop		EBP
@@ -294,9 +310,34 @@ convert_string_to_int ENDP
 
 
 calculate_sum_and_average PROC
+	AVG_RESULT_PROMPT	EQU		[EBP + 16]
+	SUM_RESULT_PROMPT	EQU		[EBP + 12]
+	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
 
+	PUSH	EBP									; store stack frame reference
+	MOV		EBP, ESP
+	
+	MOV		ECX, 10
+	MOV		EDI, NUM_ARRAY
+	MOV		EAX, 0
 
+	_sumLoop:
+		ADD	EAX, [EDI]
+		ADD	EDI, 4
+		LOOP	_sumLoop
 
+	CALL	CrLf
+	MOV		EDX, SUM_RESULT_PROMPT
+	CALL	WriteString
+	CALL	WriteInt
+	CALL	CrLf
+	MOV		EDX, AVG_RESULT_PROMPT
+	CALL	WriteString
+	CALL	CrLf
+
+	MOV		ESP, EBP
+	POP		EBP
+	RET		12
 
 calculate_sum_and_average ENDP
 
@@ -341,13 +382,9 @@ convert_int_to_string PROC ; also prints out the list of what the user entered
 
  		XCHG	EAX, EDX							; swap the quotient and the remainder
 		ADD		AL, '0'
-		;PUSH	EBX
- 		;MOV		EBX, LOOKUP_LIST					; offset char_list
- 		;XLAT										; looks up the ASCII value from the char_list in EAX
- 		;POP		EBX
+
 
  		MOV		[EDI], al							; saves the ascii digit
- 		;DEC		EDI
  		DEC		EDI
  		XCHG	EAX, EDX							; swap the quotient and the remainder
 
@@ -357,18 +394,18 @@ convert_int_to_string PROC ; also prints out the list of what the user entered
 
 
 		; add negative sign if needed
-		CMP		INT_SIGN_LOCAL, 1				; 1 means the sign is negative
+		CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
 		JNE		_printString
-		INC		ECX								; increment ECX to tell WriteString that there is 1 more character to print
+		INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
 		MOV		BYTE PTR[EDI], "-"
 		DEC		EDI
 
  	; print the string
  	_printString:
-	INC		EDI								; skip the sign bit (should be empty for a positive number)
- 	MOV		EDX, EDI						; move pointer for the string to EDX for WriteString
- 	CALL	WriteString
-	CALL	CrLf
+		INC		EDI									; skip the sign bit (should be empty for a positive number)
+ 		MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
+ 		CALL	WriteString
+		CALL	CrLf
 
 	; clean up stack
 	mov		ESP, EBP

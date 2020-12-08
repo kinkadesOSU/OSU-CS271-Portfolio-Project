@@ -1,4 +1,4 @@
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 17:20:41
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 19:43:34
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Page 1 - 1
 
 
@@ -179,9 +179,7 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 17:20:41
  0000025A  0000000A [		int_string					BYTE	MAX_LENGTH DUP(?),0
 	    00
 	   ] 00
- 00000265 30 31 32 33 34	char_list					BYTE	"0123456789"
-	   35 36 37 38 39
- 0000026F 00000000		sign_indicator				DWORD	0						; need a boolean to tell us which sign the number is. Can't use the sign flag since it's controlled by the system. Assume it's a positive number to start (makes life easier)
+ 00000265 00000000		sign_indicator				DWORD	0						; need a boolean to tell us which sign the number is. Can't use the sign flag since it's controlled by the system. Assume it's a positive number to start (makes life easier)
 
 
  00000000			.code
@@ -195,47 +193,47 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 17:20:41
  0000000F  68 00000082 R	PUSH	offset	instruction2
  00000014  68 000000CE R	PUSH	offset	instruction3
  00000019  68 00000121 R	PUSH	offset	instruction4
- 0000001E  E8 00000051		CALL	introduction
+ 0000001E  E8 00000060		CALL	introduction
 
 
 				; read in the user's value
  00000023  B9 0000000A		MOV		ECX, 10						; accept 10 strings
  00000028			_inputLoop:
 
-					;PUSH	ECX							; save counter
  00000028  68 0000022C R		PUSH	OFFSET	user_input_array
  0000002D  68 00000178 R		PUSH	OFFSET	error_message1
  00000032  68 000001BE R		PUSH	OFFSET	error_message2
  00000037  68 00000159 R		PUSH	OFFSET	enter_instruction
  0000003C  68 00000241 R		PUSH	OFFSET	BUFFER
  00000041  6A 15			PUSH	SIZEOF	BUFFER
- 00000043  E8 00000088			CALL	convert_string_to_int	
-					;POP		ECX							; restore counter
-					;LOOP	_inputLoop
+ 00000043  E8 00000097			CALL	convert_string_to_int	
+
 					
 
 
- 00000048  FF 35 0000026F R	PUSH	sign_indicator				; to flip the sign
-				;PUSH	OFFSET char_list			; lookup list for ASCII conversion
+
+ 00000048  FF 35 00000265 R	PUSH	sign_indicator				; to flip the sign
  0000004E  68 0000025A R	PUSH	OFFSET int_string			; address to place the converted integer
  00000053  68 000001D1 R	PUSH	OFFSET result_prompt
  00000058  50			PUSH	EAX							; has number to convert
- 00000059  E8 0000014D		CALL	convert_int_to_string
+ 00000059  E8 000001D0		CALL	convert_int_to_string
 
-				; calculate results
-
+				; calculate the sum and average
+ 0000005E  68 000001D1 R	PUSH	OFFSET	result_prompt
+ 00000063  68 0000022C R	PUSH	OFFSET	user_input_array	; array to sum
+ 00000068  E8 00000180		CALL	calculate_sum_and_average
 
 				;say goodbye
- 0000005E  68 00000145 R	PUSH	offset	goodbye
- 00000063  E8 000001AA		CALL	say_goodbye
- 00000068  E8 00000000 E	CALL	CrLf
+ 0000006D  68 00000145 R	PUSH	offset	goodbye
+ 00000072  E8 0000021E		CALL	say_goodbye
+ 00000077  E8 00000000 E	CALL	CrLf
 					Invoke ExitProcess,0	; exit to operating system
- 0000006D  6A 00	   *	    push   +000000000h
- 0000006F  E8 00000000 E   *	    call   ExitProcess
- 00000074			main ENDP
+ 0000007C  6A 00	   *	    push   +000000000h
+ 0000007E  E8 00000000 E   *	    call   ExitProcess
+ 00000083			main ENDP
 
 				; (insert additional procedures here)
- 00000074			introduction PROC
+ 00000083			introduction PROC
  = [EBP + 28]				INTRO_1				EQU		[EBP + 28]
  = [EBP + 24]				INTRO_2				EQU		[EBP + 24]
  = [EBP + 20]				INSTRUCTION_1		EQU		[EBP + 20]
@@ -243,36 +241,36 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 17:20:41
  = [EBP + 12]				INSTRUCTION_3		EQU		[EBP + 12]
  = [EBP + 8]				INSTRUCTION_4		EQU		[EBP + 8]
 
- 00000074  55				PUSH	EBP						; store stack frame reference
- 00000075  8B EC			MOV		EBP, ESP		
- 00000077  8B 55 1C			MOV		EDX, INTRO_1
- 0000007A  E8 00000000 E		CALL	WriteString
- 0000007F  E8 00000000 E		CALL	CrLf
- 00000084  8B 55 18			MOV		EDX, INTRO_2
- 00000087  E8 00000000 E		CALL	WriteString
- 0000008C  E8 00000000 E		CALL	CrLf
- 00000091  E8 00000000 E		CALL	CrLf
- 00000096  8B 55 14			MOV		EDX, INSTRUCTION_1
- 00000099  E8 00000000 E		CALL	WriteString
- 0000009E  E8 00000000 E		CALL	CrLf
- 000000A3  8B 55 10			MOV		EDX, INSTRUCTION_2
- 000000A6  E8 00000000 E		CALL	WriteString
- 000000AB  E8 00000000 E		CALL	CrLf
- 000000B0  8B 55 0C			MOV		EDX, INSTRUCTION_3
- 000000B3  E8 00000000 E		CALL	WriteString
- 000000B8  E8 00000000 E		CALL	CrLf
- 000000BD  8B 55 08			MOV		EDX, INSTRUCTION_4
- 000000C0  E8 00000000 E		CALL	WriteString
- 000000C5  E8 00000000 E		CALL	CrLf
+ 00000083  55				PUSH	EBP						; store stack frame reference
+ 00000084  8B EC			MOV		EBP, ESP		
+ 00000086  8B 55 1C			MOV		EDX, INTRO_1
+ 00000089  E8 00000000 E		CALL	WriteString
+ 0000008E  E8 00000000 E		CALL	CrLf
+ 00000093  8B 55 18			MOV		EDX, INTRO_2
+ 00000096  E8 00000000 E		CALL	WriteString
+ 0000009B  E8 00000000 E		CALL	CrLf
+ 000000A0  E8 00000000 E		CALL	CrLf
+ 000000A5  8B 55 14			MOV		EDX, INSTRUCTION_1
+ 000000A8  E8 00000000 E		CALL	WriteString
+ 000000AD  E8 00000000 E		CALL	CrLf
+ 000000B2  8B 55 10			MOV		EDX, INSTRUCTION_2
+ 000000B5  E8 00000000 E		CALL	WriteString
+ 000000BA  E8 00000000 E		CALL	CrLf
+ 000000BF  8B 55 0C			MOV		EDX, INSTRUCTION_3
+ 000000C2  E8 00000000 E		CALL	WriteString
+ 000000C7  E8 00000000 E		CALL	CrLf
+ 000000CC  8B 55 08			MOV		EDX, INSTRUCTION_4
+ 000000CF  E8 00000000 E		CALL	WriteString
+ 000000D4  E8 00000000 E		CALL	CrLf
 
 					; clean up stack
- 000000CA  8B E5			mov		ESP, EBP
- 000000CC  5D				pop		EBP
- 000000CD  C2 0018			ret		24
+ 000000D9  8B E5			mov		ESP, EBP
+ 000000DB  5D				pop		EBP
+ 000000DC  C2 0018			ret		24
 
- 000000D0			introduction ENDP
+ 000000DF			introduction ENDP
 
- 000000D0			convert_string_to_int PROC
+ 000000DF			convert_string_to_int PROC
 
  = [EBP + 28]				LIST_OF_NUMBERS				EQU [EBP + 28]
  = [EBP + 24]				ERROR1						EQU [EBP + 24]
@@ -281,255 +279,296 @@ Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 17:20:41
  = [EBP + 12]				STRING_BUFFER				EQU [EBP + 12]
  = [EBP + 8]				SIZEOF_STRING_BUFFER		EQU [EBP + 8]
 
-					;LIST_OF_NUMBERS_LOCAL	EQU	DWORD PTR [EBP - 4]
+ 000000DF  55				PUSH	EBP						; store stack frame reference
+ 000000E0  8B EC			MOV		EBP, ESP
+					
+ 000000E2  83 EC 08			SUB		ESP, 8					; reserve space for locals
+					
+ 000000E5  8B 5D 1C			MOV		EBX, LIST_OF_NUMBERS
+ 000000E8  8B 45 18			MOV		EAX, ERROR1
+ 000000EB  89 45 FC			MOV		LOCAL_ERROR1, EAX
+ 000000EE  8B 45 14			MOV		EAX, ERROR2
+ 000000F1  89 45 F8			MOV		LOCAL_ERROR2, EAX
+					
+ 000000F4  55				PUSH	EBP						; save stack pointer because EBP is going to be used later
+ 000000F5  53				PUSH	EBX						; pushes first location of the array to write numbers into
 
- 000000D0  55				PUSH	EBP						; store stack frame reference
- 000000D1  8B EC			MOV		EBP, ESP
+ 000000F6  B9 0000000A			MOV		ECX, 10					; loop counter to get 10 strings
 					
- 000000D3  83 EC 08			SUB		ESP, 8					; reserve space for locals
-					
- 000000D6  8B 5D 1C			MOV		EBX, LIST_OF_NUMBERS
- 000000D9  8B 45 18			MOV		EAX, ERROR1
- 000000DC  89 45 FC			MOV		LOCAL_ERROR1, EAX
- 000000DF  8B 45 14			MOV		EAX, ERROR2
- 000000E2  89 45 F8			MOV		LOCAL_ERROR2, EAX
-					
- 000000E5  55				PUSH	EBP						; save stack pointer because EBP is going to be used later
- 000000E6  53				PUSH	EBX						; pushes first location of the array to write numbers into
-
- 000000E7  B9 0000000A			MOV		ECX, 10					; loop counter to get 10 strings
-					
- 000000EC				_enterValue:
- 000000EC  51					PUSH	ECX						; save loop counter
+ 000000FB				_enterValue:
+ 000000FB  51					PUSH	ECX						; save loop counter
 						; give the user some instructions
- 000000ED  8B 55 10				MOV		EDX, USER_INSTRUCTION
- 000000F0  E8 00000000 E			CALL	WriteString
+ 000000FC  8B 55 10				MOV		EDX, USER_INSTRUCTION
+ 000000FF  E8 00000000 E			CALL	WriteString
 
 						; set up registers and read the value (MACRO)
- 000000F5  8B 55 0C				MOV		EDX, STRING_BUFFER
- 000000F8  8B 4D 08				MOV		ECX, SIZEOF_STRING_BUFFER
- 000000FB  E8 00000000 E			CALL	ReadString					; gets the user's number as a string (need to convert to an int)
- 00000100  8B C8				MOV		ECX, EAX					; moves number of bytes into ECX for the conversion steps
- 00000102  8B 75 0C				MOV		ESI, STRING_BUFFER			; moves the string to ESI so LODSB can iterate through it
+ 00000104  8B 55 0C				MOV		EDX, STRING_BUFFER
+ 00000107  8B 4D 08				MOV		ECX, SIZEOF_STRING_BUFFER
+ 0000010A  E8 00000000 E			CALL	ReadString					; gets the user's number as a string (need to convert to an int)
+ 0000010F  8B C8				MOV		ECX, EAX					; moves number of bytes into ECX for the conversion steps
+ 00000111  8B 75 0C				MOV		ESI, STRING_BUFFER			; moves the string to ESI so LODSB can iterate through it
 
 						; convert string to int
- 00000105  AC					LODSB								; puts a byte in AL
- 00000106  8A D0				MOV		dl, al						; preserve the character so we can use EAX later
- 00000108  BD 00000001				MOV		EBP, 1						; assume the number is positive to begin with. Logic get's complicated to have the default later on	
+ 00000114  AC					LODSB								; puts a byte in AL
+ 00000115  8A D0				MOV		dl, al						; preserve the character so we can use EAX later
+ 00000117  BD 00000001				MOV		EBP, 1						; assume the number is positive to begin with. Logic get's complicated to have the default later on	
 						
- 0000010D					_checkNegative:
- 0000010D  80 FA 2D					CMP		dl, '-'
- 00000110  75 09					JNE		_checkPositive
- 00000112  BD FFFFFFFF					MOV		EBP, -1
+ 0000011C					_checkNegative:
+ 0000011C  80 FA 2D					CMP		dl, '-'
+ 0000011F  75 09					JNE		_checkPositive
+ 00000121  BD FFFFFFFF					MOV		EBP, -1
 
- 00000117  AC						LODSB							; load the next digit
- 00000118  8A D0					MOV		dl, al					; preserve the character so we can use EAX later
- 0000011A  49						DEC		ECX						; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
+ 00000126  AC						LODSB							; load the next digit
+ 00000127  8A D0					MOV		dl, al					; preserve the character so we can use EAX later
+ 00000129  49						DEC		ECX						; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
 						
- 0000011B					_checkPositive:
- 0000011B  80 FA 2B					CMP		dl, "+"
- 0000011E  75 09					JNE		_noSignIndicated		; assume the number is positive if the user didn't specify
- 00000120  BD 00000001					MOV		EBP, 1					
+ 0000012A					_checkPositive:
+ 0000012A  80 FA 2B					CMP		dl, "+"
+ 0000012D  75 09					JNE		_noSignIndicated		; assume the number is positive if the user didn't specify
+ 0000012F  BD 00000001					MOV		EBP, 1					
 							
- 00000125  AC						LODSB							; load the next digit
- 00000126  8A D0					MOV		dl, al					; preserve the character so we can use EAX later
- 00000128  49						DEC		ECX						; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
+ 00000134  AC						LODSB							; load the next digit
+ 00000135  8A D0					MOV		dl, al					; preserve the character so we can use EAX later
+ 00000137  49						DEC		ECX						; ECX would've had the length of the digit plus 1 for the sign. We need to ignore that
 						
- 00000129					_noSignIndicated:
- 00000129  80 FA 30					CMP		dl, '0'
- 0000012C  72 59					JB		_errorMessage
- 0000012E  80 FA 39					CMP		dl, '9'
- 00000131  77 54					JA		_errorMessage
+ 00000138					_noSignIndicated:
+ 00000138  80 FA 30					CMP		dl, '0'
+ 0000013B  72 59					JB		_errorMessage
+ 0000013D  80 FA 39					CMP		dl, '9'
+ 00000140  77 54					JA		_errorMessage
 
- 00000133  5B						POP		EBX						; has loop counter from stack
- 00000134  5F						POP		EDI						; location of array to store numbers
- 00000135  58						POP		EAX						; get the stack pointer off the stack
- 00000136  53						PUSH	EBX						; shuffle loop counter on the stack
- 00000137  55						PUSH	EBP						; +/- 1
- 00000138  57						PUSH	EDI						; location of array to store numbers
+							; shuffle the stack to get values in the proper position
+ 00000142  5B						POP		EBX						; has loop counter from stack
+ 00000143  5F						POP		EDI						; location of array to store numbers
+ 00000144  58						POP		EAX						; get the stack pointer off the stack
+ 00000145  53						PUSH	EBX						; shuffle loop counter on the stack
+ 00000146  55						PUSH	EBP						; +/- 1
+ 00000147  57						PUSH	EDI						; location of array to store numbers
 
- 00000139  50						PUSH	EAX ; EBP						; has our stack pointer, but is also being used for the calculation
- 0000013A  BD 00000000					MOV		EBP, 0					; use EBP for calc because EAX is locked up
- 0000013F  B8 00000000					MOV		EAX, 0
- 00000144  BB 0000000A					MOV		EBX, 10
+ 00000148  50						PUSH	EAX						; has our stack pointer, but is also being used for the calculation
+ 00000149  BD 00000000					MOV		EBP, 0					; use EBP for calc because EAX is locked up
+ 0000014E  B8 00000000					MOV		EAX, 0
+ 00000153  BB 0000000A					MOV		EBX, 10
 
-							;PUSH	ECX						; pushes length of byte for conversion and store loop	
- 00000149					_conversionLoop:			
+ 00000158					_conversionLoop:			
 							; passes sign checks. This loop then iterates through each character. Need to verify that the character is a digit so we can convert the character to a digit
 							; check new digit
- 00000149  80 FA 30					CMP		dl, '0'
- 0000014C  72 39					JB		_errorMessage
- 0000014E  80 FA 39					CMP		dl, '9'
- 00000151  77 34					JA		_errorMessage
+ 00000158  80 FA 30					CMP		dl, '0'
+ 0000015B  72 39					JB		_errorMessage
+ 0000015D  80 FA 39					CMP		dl, '9'
+ 00000160  77 34					JA		_errorMessage
 							
 							; convert
- 00000153  83 E2 0F					AND		EDX, 0Fh
- 00000156  52						PUSH	EDX								; save EDX because IMUL messes with it. EDX contains the digit being converted
- 00000157  8B C5					MOV		EAX, EBP						; EBP has 0 on the first pass. It then increases by a factor for 10 each round
- 00000159  F7 EB					IMUL	EBX								; EAX = EAX * EBX
- 0000015B  5A						POP		EDX								; bring EDX back
+ 00000162  83 E2 0F					AND		EDX, 0Fh
+ 00000165  52						PUSH	EDX								; save EDX because IMUL messes with it. EDX contains the digit being converted
+ 00000166  8B C5					MOV		EAX, EBP						; EBP has 0 on the first pass. It then increases by a factor for 10 each round
+ 00000168  F7 EB					IMUL	EBX								; EAX = EAX * EBX
+ 0000016A  5A						POP		EDX								; bring EDX back
 						
- 0000015C  70 29					JO		_errorMessage					; check if EDX has overflowed (result of the multiplication by 10)
- 0000015E  8B E8					MOV		EBP, EAX
- 00000160  03 EA					add		EBP, EDX						; bring pointer back
- 00000162  70 23					JO		_errorMessage					; checks if EBP has overflowed (has the result)
- 00000164  AC						LODSB									; load character to al
- 00000165  8A D0					MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl		
- 00000167  E2 E0					LOOP		_conversionLoop
+ 0000016B  70 52					JO		_overflow						; check if EDX has overflowed (result of the multiplication by 10)
+ 0000016D  8B E8					MOV		EBP, EAX
+ 0000016F  03 EA					add		EBP, EDX						; bring pointer back
+ 00000171  70 4C					JO		_overflow						; checks if EBP has overflowed (has the result)
+ 00000173  AC						LODSB									; load character to al
+ 00000174  8A D0					MOV		dl, al							; LODSB puts the byte in al, but the loop uses EDX, so the byte needs to be in dl		
+ 00000176  E2 E0					LOOP	_conversionLoop
 							
- 00000169  8B C5				MOV		EAX, EBP							; EBP has been holding the result, but EAX will need it for WriteInt
-						;POP		ECX									; restore loop counter. Will be however many bytes are in the string that was just converted
- 0000016B  5D					POP		EBP									; stack pointer
- 0000016C  8B FD				MOV		EDI, EBP							; preserve EBP because EBP is going to be used
- 0000016E  5B					POP		EBX									; location of array to store numbers
- 0000016F  5D					POP		EBP									; EBP should have the +/- 1
- 00000170  F7 ED				IMUL	EBP									; EAX * EBP ( +/- 1)
- 00000172  8B EF				MOV		EBP, EDI							; restore stack pointer to EBP
+ 00000178  8B C5				MOV		EAX, EBP							; EBP has been holding the result, but EAX will need it for WriteInt
+
+ 0000017A  5D					POP		EBP									; stack pointer
+ 0000017B  8B FD				MOV		EDI, EBP							; preserve EBP because EBP is going to be used
+ 0000017D  5B					POP		EBX									; location of array to store numbers
+ 0000017E  5D					POP		EBP									; EBP should have the +/- 1
+ 0000017F  F7 ED				IMUL	EBP									; EAX * EBP ( +/- 1)
+ 00000181  8B EF				MOV		EBP, EDI							; restore stack pointer to EBP
 						
 						; store the digit
- 00000174  8B FB				MOV		EDI, EBX									; offset to address of array that will hold the ten
- 00000176  89 07				MOV		[EDI], EAX
- 00000178  83 C7 04				ADD		EDI, 4
-
-						;_storeLoop:
-						;	STOSB										; stores the byte. USES EDI!!!!!!!!!	
-						;	LOOP	_storeLoop
+ 00000183  8B FB				MOV		EDI, EBX									; offset to address of array that will hold the ten
+ 00000185  89 07				MOV		[EDI], EAX
+ 00000187  83 C7 04				ADD		EDI, 4
 							
- 0000017B  59					POP		ECX								; restore outer loop counter
- 0000017C  55					PUSH	EBP
- 0000017D  57					PUSH	EDI
+ 0000018A  59					POP		ECX								; restore outer loop counter
+ 0000018B  55					PUSH	EBP
+ 0000018C  57					PUSH	EDI
 						;PUSH	ECX
- 0000017E  49					DEC		ECX
- 0000017F  0F 85 FFFFFF67			JNZ		_enterValue
+ 0000018D  49					DEC		ECX
+ 0000018E  0F 85 FFFFFF67			JNZ		_enterValue
 						;LOOP	_enterValue								; get the next value and repeat
 
- 00000185  EB 1E				JMP		_endProcedure
+ 00000194  EB 51				JMP		_endProcedure
 
- 00000187				_errorMessage:
+ 00000196				_errorMessage:
 					; print error message
- 00000187  58					POP		EAX
- 00000188  8B E8				MOV		EBP, EAX
- 0000018A  8B 55 FC				MOV		EDX, LOCAL_ERROR1
- 0000018D  E8 00000000 E			CALL	WriteString
- 00000192  E8 00000000 E			CALL	CrLf
- 00000197  8B 55 F8				MOV		EDX, LOCAL_ERROR2
- 0000019A  E8 00000000 E			CALL	WriteString
- 0000019F  55					PUSH	EBP
- 000001A0  E9 FFFFFF47				JMP		_enterValue
-						;PUSH	EBP
+ 00000196  59					POP		ECX										; unload the stack
+ 00000197  58					POP		EAX										; unload the stack
+
+ 00000198  58					POP		EAX										; get stack pointer off
+ 00000199  8B E8				MOV		EBP, EAX								; move to EBP for the local variables
+ 0000019B  8B 55 FC				MOV		EDX, LOCAL_ERROR1
+ 0000019E  E8 00000000 E			CALL	WriteString
+ 000001A3  E8 00000000 E			CALL	CrLf
+ 000001A8  8B 55 F8				MOV		EDX, LOCAL_ERROR2
+ 000001AB  E8 00000000 E			CALL	WriteString
+ 000001B0  E8 00000000 E			CALL	CrLf
 					
- 000001A5				_endProcedure:
- 000001A5  8B E5			mov		ESP, EBP
- 000001A7  5D				pop		EBP
- 000001A8  C2 0018			ret		24
+						; set up stack for another try
+ 000001B5  55					PUSH	EBP										
+ 000001B6  8B 5D 1C				MOV		EBX, LIST_OF_NUMBERS
+ 000001B9  53					PUSH	EBX
+ 000001BA  E9 FFFFFF3C				JMP		_enterValue
+					
+ 000001BF				_overflow:
+ 000001BF  5D					POP		EBP						; stack pointer
+ 000001C0  59					POP		ECX						; location of converted array
+ 000001C1  59					POP		ECX						; + / - 1
+ 000001C2  59					POP		ECX						; loop counter
 
- 000001AB			convert_string_to_int ENDP
+ 000001C3  8B 55 FC				MOV		EDX, LOCAL_ERROR1
+ 000001C6  E8 00000000 E			CALL	WriteString
+ 000001CB  E8 00000000 E			CALL	CrLf
+ 000001D0  8B 55 F8				MOV		EDX, LOCAL_ERROR2
+ 000001D3  E8 00000000 E			CALL	WriteString
+ 000001D8  E8 00000000 E			CALL	CrLf
 
- 000001AB			calculate_sum_and_average PROC
+						; set up stack for another try
+ 000001DD  55					PUSH	EBP										
+ 000001DE  8B 5D 1C				MOV		EBX, LIST_OF_NUMBERS
+ 000001E1  53					PUSH	EBX
+ 000001E2  E9 FFFFFF14				JMP		_enterValue
+
+ 000001E7				_endProcedure:
+ 000001E7  8B E5			mov		ESP, EBP
+ 000001E9  5D				pop		EBP
+ 000001EA  C2 0018			ret		24
+
+ 000001ED			convert_string_to_int ENDP
+
+
+ 000001ED			calculate_sum_and_average PROC
+ = [EBP + 16]				AVG_RESULT_PROMPT	EQU		[EBP + 16]
+ = [EBP + 12]				SUM_RESULT_PROMPT	EQU		[EBP + 12]
+ = [EBP + 8]				NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
+
+ 000001ED  55				PUSH	EBP									; store stack frame reference
+ 000001EE  8B EC			MOV		EBP, ESP
+					
+ 000001F0  B9 0000000A			MOV		ECX, 10
+ 000001F5  8B 7D 08			MOV		EDI, NUM_ARRAY
+ 000001F8  B8 00000000			MOV		EAX, 0
+
+ 000001FD				_sumLoop:
+ 000001FD  03 07				ADD	EAX, [EDI]
+ 000001FF  83 C7 04				ADD	EDI, 4
+ 00000202  E2 F9				LOOP	_sumLoop
+
+ 00000204  E8 00000000 E		CALL	CrLf
+ 00000209  8B 55 0C			MOV		EDX, SUM_RESULT_PROMPT
+ 0000020C  E8 00000000 E		CALL	WriteString
+ 00000211  E8 00000000 E		CALL	WriteInt
+ 00000216  E8 00000000 E		CALL	CrLf
+ 0000021B  8B 55 10			MOV		EDX, AVG_RESULT_PROMPT
+ 0000021E  E8 00000000 E		CALL	WriteString
+ 00000223  E8 00000000 E		CALL	CrLf
+
+ 00000228  8B E5			MOV		ESP, EBP
+ 0000022A  5D				POP		EBP
+ 0000022B  C2 000C			RET		12
+
+ 0000022E			calculate_sum_and_average ENDP
 
 
 
 
- 000001AB			calculate_sum_and_average ENDP
-
-
-
-
- 000001AB			convert_int_to_string PROC
+ 0000022E			convert_int_to_string PROC ; also prints out the list of what the user entered
  = [EBP + 20]				INT_SIGN			EQU		[EBP + 20]			; make shift sign flag		
-					;LOOKUP_LIST			EQU		[EBP + 20]			; offset to char_list
  = [EBP + 16]				CONVERTED_STRING	EQU		[EBP + 16]			; string that holds the converted integer
  = [EBP + 12]				USER_MESSAGE		EQU		[EBP + 12]			; offset to result_prompt
  = [EBP + 8]				NUMBER_TO_CONVERT	EQU		[EBP + 8]
 					
  = DWORD PTR [EBP - 4]			INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
 
- 000001AB  55				PUSH	EBP										; store stack frame reference
- 000001AC  8B EC			MOV		EBP, ESP	
+ 0000022E  55				PUSH	EBP										; store stack frame reference
+ 0000022F  8B EC			MOV		EBP, ESP	
 
- 000001AE  83 EC 04			SUB		ESP, 4									; make room for local variable
+ 00000231  83 EC 04			SUB		ESP, 4									; make room for local variable
 
- 000001B1  8B 45 08			MOV		EAX, NUMBER_TO_CONVERT
+ 00000234  8B 45 08			MOV		EAX, NUMBER_TO_CONVERT
 					
- 000001B4  8B 5D 14			MOV		EBX, INT_SIGN
- 000001B7  89 5D FC			MOV		INT_SIGN_LOCAL, EBX
+ 00000237  8B 5D 14			MOV		EBX, INT_SIGN
+ 0000023A  89 5D FC			MOV		INT_SIGN_LOCAL, EBX
 
 					; print result message so the references stay ok
- 000001BA  8B 55 0C			MOV		EDX, USER_MESSAGE
- 000001BD  E8 00000000 E		CALL	WriteString
+ 0000023D  8B 55 0C			MOV		EDX, USER_MESSAGE
+ 00000240  E8 00000000 E		CALL	WriteString
 
- 000001C2  B9 00000000			MOV		ECX, 0
- 000001C7  8B 7D 10			MOV		EDI,CONVERTED_STRING					; offset int_string
- 000001CA  83 C7 09			ADD		EDI, (MAX_LENGTH-1)
- 000001CD  BB 0000000A			MOV		EBX, 10
+ 00000245  B9 00000000			MOV		ECX, 0
+ 0000024A  8B 7D 10			MOV		EDI,CONVERTED_STRING					; offset int_string
+ 0000024D  83 C7 09			ADD		EDI, (MAX_LENGTH-1)
+ 00000250  BB 0000000A			MOV		EBX, 10
 						
- 000001D2  83 F8 00			CMP		EAX, 0
- 000001D5  7F 09			JG		_divideLoop
- 000001D7  F7 D8			NEG		EAX									; make the negative number positive
- 000001D9  C7 45 FC			MOV		INT_SIGN_LOCAL, 1
+ 00000255  83 F8 00			CMP		EAX, 0
+ 00000258  7F 09			JG		_divideLoop
+ 0000025A  F7 D8			NEG		EAX									; make the negative number positive
+ 0000025C  C7 45 FC			MOV		INT_SIGN_LOCAL, 1
 	   00000001
 
- 000001E0				 _divideLoop:
- 000001E0  BA 00000000		 		MOV		EDX, 0
- 000001E5  F7 F3		 		DIV		EBX
+ 00000263				 _divideLoop:
+ 00000263  BA 00000000		 		MOV		EDX, 0
+ 00000268  F7 F3		 		DIV		EBX
 
- 000001E7  92			 		XCHG	EAX, EDX							; swap the quotient and the remainder
- 000001E8  04 30				ADD		AL, '0'
-						;PUSH	EBX
-				 		;MOV		EBX, LOOKUP_LIST					; offset char_list
-				 		;XLAT										; looks up the ASCII value from the char_list in EAX
-				 		;POP		EBX
+ 0000026A  92			 		XCHG	EAX, EDX							; swap the quotient and the remainder
+ 0000026B  04 30				ADD		AL, '0'
 
- 000001EA  88 07		 		MOV		[EDI], al							; saves the ascii digit
-				 		;DEC		EDI
- 000001EC  4F			 		DEC		EDI
- 000001ED  92			 		XCHG	EAX, EDX							; swap the quotient and the remainder
 
- 000001EE  41			 		INC		ECX
- 000001EF  83 F8 00		 		CMP		EAX, 0					
- 000001F2  75 EC		 		JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
+ 0000026D  88 07		 		MOV		[EDI], al							; saves the ascii digit
+ 0000026F  4F			 		DEC		EDI
+ 00000270  92			 		XCHG	EAX, EDX							; swap the quotient and the remainder
+
+ 00000271  41			 		INC		ECX
+ 00000272  83 F8 00		 		CMP		EAX, 0					
+ 00000275  75 EC		 		JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
 
 
 						; add negative sign if needed
- 000001F4  83 7D FC 01				CMP		INT_SIGN_LOCAL, 1				; 1 means the sign is negative
- 000001F8  75 05				JNE		_printString
- 000001FA  41					INC		ECX								; increment ECX to tell WriteString that there is 1 more character to print
- 000001FB  C6 07 2D				MOV		BYTE PTR[EDI], "-"
- 000001FE  4F					DEC		EDI
+ 00000277  83 7D FC 01				CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
+ 0000027B  75 05				JNE		_printString
+ 0000027D  41					INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
+ 0000027E  C6 07 2D				MOV		BYTE PTR[EDI], "-"
+ 00000281  4F					DEC		EDI
 
 				 	; print the string
- 000001FF			 	_printString:
- 000001FF  47				INC		EDI								; skip the sign bit (should be empty for a positive number)
- 00000200  8B D7		 	MOV		EDX, EDI						; move pointer for the string to EDX for WriteString
- 00000202  E8 00000000 E	 	CALL	WriteString
- 00000207  E8 00000000 E		CALL	CrLf
+ 00000282			 	_printString:
+ 00000282  47					INC		EDI									; skip the sign bit (should be empty for a positive number)
+ 00000283  8B D7		 		MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
+ 00000285  E8 00000000 E	 		CALL	WriteString
+ 0000028A  E8 00000000 E			CALL	CrLf
 
 					; clean up stack
- 0000020C  8B E5			mov		ESP, EBP
- 0000020E  5D				pop		EBP
- 0000020F  C2 0008			ret		8
+ 0000028F  8B E5			mov		ESP, EBP
+ 00000291  5D				pop		EBP
+ 00000292  C2 0008			ret		8
 
- 00000212			convert_int_to_string ENDP
+ 00000295			convert_int_to_string ENDP
 
- 00000212			say_goodbye PROC
+ 00000295			say_goodbye PROC
  = [EBP + 8]				GOOD_BYE		EQU		[EBP + 8]
 					
- 00000212  55				PUSH	EBP						; store stack frame reference
- 00000213  8B EC			MOV		EBP, ESP	
- 00000215  8B 55 08			MOV		EDX, GOOD_BYE
- 00000218  E8 00000000 E		CALL	WriteString
- 0000021D  E8 00000000 E		CALL	CrLF
+ 00000295  55				PUSH	EBP						; store stack frame reference
+ 00000296  8B EC			MOV		EBP, ESP	
+ 00000298  8B 55 08			MOV		EDX, GOOD_BYE
+ 0000029B  E8 00000000 E		CALL	WriteString
+ 000002A0  E8 00000000 E		CALL	CrLF
 
 					; clean up stack
- 00000222  8B E5			mov		ESP, EBP
- 00000224  5D				pop		EBP
- 00000225  C2 0004			ret		4
+ 000002A5  8B E5			mov		ESP, EBP
+ 000002A7  5D				pop		EBP
+ 000002A8  C2 0004			ret		4
 
- 00000228			say_goodbye ENDP
+ 000002AB			say_goodbye ENDP
 
 
 				END main
-Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 17:20:41
+Microsoft (R) Macro Assembler Version 14.27.29112.0	    12/07/20 19:43:34
 <Designing low-level I/O procedures      (Proj6-kinkades.asm  Symbols 2 - 1
 
 
@@ -623,8 +662,8 @@ Segments and Groups:
 
 FLAT . . . . . . . . . . . . . .	GROUP
 STACK  . . . . . . . . . . . . .	32 Bit	 00001000 Para	  Stack	  'STACK'	 
-_DATA  . . . . . . . . . . . . .	32 Bit	 00000273 Para	  Public  'DATA'	
-_TEXT  . . . . . . . . . . . . .	32 Bit	 00000228 Para	  Public  'CODE'	
+_DATA  . . . . . . . . . . . . .	32 Bit	 00000269 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 000002AB Para	  Public  'CODE'	
 
 
 Procedures, parameters, and locals:
@@ -731,23 +770,25 @@ WriteStackFrame  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External
 WriteString  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteToFile  . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
 WriteWindowsMsg  . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External STDCALL
-calculate_sum_and_average  . . .	P Near	 000001AB _TEXT	Length= 00000000 Public STDCALL
-convert_int_to_string  . . . . .	P Near	 000001AB _TEXT	Length= 00000067 Public STDCALL
-  _divideLoop  . . . . . . . . .	L Near	 000001E0 _TEXT	
-  _printString . . . . . . . . .	L Near	 000001FF _TEXT	
-convert_string_to_int  . . . . .	P Near	 000000D0 _TEXT	Length= 000000DB Public STDCALL
-  _enterValue  . . . . . . . . .	L Near	 000000EC _TEXT	
-  _checkNegative . . . . . . . .	L Near	 0000010D _TEXT	
-  _checkPositive . . . . . . . .	L Near	 0000011B _TEXT	
-  _noSignIndicated . . . . . . .	L Near	 00000129 _TEXT	
-  _conversionLoop  . . . . . . .	L Near	 00000149 _TEXT	
-  _errorMessage  . . . . . . . .	L Near	 00000187 _TEXT	
-  _endProcedure  . . . . . . . .	L Near	 000001A5 _TEXT	
-introduction . . . . . . . . . .	P Near	 00000074 _TEXT	Length= 0000005C Public STDCALL
-main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000074 Public STDCALL
+calculate_sum_and_average  . . .	P Near	 000001ED _TEXT	Length= 00000041 Public STDCALL
+  _sumLoop . . . . . . . . . . .	L Near	 000001FD _TEXT	
+convert_int_to_string  . . . . .	P Near	 0000022E _TEXT	Length= 00000067 Public STDCALL
+  _divideLoop  . . . . . . . . .	L Near	 00000263 _TEXT	
+  _printString . . . . . . . . .	L Near	 00000282 _TEXT	
+convert_string_to_int  . . . . .	P Near	 000000DF _TEXT	Length= 0000010E Public STDCALL
+  _enterValue  . . . . . . . . .	L Near	 000000FB _TEXT	
+  _checkNegative . . . . . . . .	L Near	 0000011C _TEXT	
+  _checkPositive . . . . . . . .	L Near	 0000012A _TEXT	
+  _noSignIndicated . . . . . . .	L Near	 00000138 _TEXT	
+  _conversionLoop  . . . . . . .	L Near	 00000158 _TEXT	
+  _errorMessage  . . . . . . . .	L Near	 00000196 _TEXT	
+  _overflow  . . . . . . . . . .	L Near	 000001BF _TEXT	
+  _endProcedure  . . . . . . . .	L Near	 000001E7 _TEXT	
+introduction . . . . . . . . . .	P Near	 00000083 _TEXT	Length= 0000005C Public STDCALL
+main . . . . . . . . . . . . . .	P Near	 00000000 _TEXT	Length= 00000083 Public STDCALL
   _inputLoop . . . . . . . . . .	L Near	 00000028 _TEXT	
 printf . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
-say_goodbye  . . . . . . . . . .	P Near	 00000212 _TEXT	Length= 00000016 Public STDCALL
+say_goodbye  . . . . . . . . . .	P Near	 00000295 _TEXT	Length= 00000016 Public STDCALL
 scanf  . . . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 wsprintfA  . . . . . . . . . . .	P Near	 00000000 FLAT	Length= 00000000 External C
 
@@ -766,6 +807,7 @@ Symbols:
 @fardata . . . . . . . . . . . .	Text   	 FLAT
 @stack . . . . . . . . . . . . .	Text   	 FLAT
 ALT_MASK . . . . . . . . . . . .	Number	 00000003h   
+AVG_RESULT_PROMPT  . . . . . . .	Text   	 [EBP + 16]
 BUFFER . . . . . . . . . . . . .	Byte	 00000241 _DATA	
 CAPSLOCK_ON  . . . . . . . . . .	Number	 00000080h   
 CONVERTED_STRING . . . . . . . .	Text   	 [EBP + 16]
@@ -885,6 +927,7 @@ MessageBox . . . . . . . . . . .	Text   	 MessageBoxA
 NULL . . . . . . . . . . . . . .	Number	 00000000h   
 NUMBER_TO_CONVERT  . . . . . . .	Text   	 [EBP + 8]
 NUMLOCK_ON . . . . . . . . . . .	Number	 00000020h   
+NUM_ARRAY  . . . . . . . . . . .	Text   	 [EBP + 8]
 OPEN_ALWAYS  . . . . . . . . . .	Number	 00000004h   
 OPEN_EXISTING  . . . . . . . . .	Number	 00000003h   
 PeekConsoleInput . . . . . . . .	Text   	 PeekConsoleInputA
@@ -900,6 +943,7 @@ STD_ERROR_HANDLE . . . . . . . .	Number	 -0000000Ch
 STD_INPUT_HANDLE . . . . . . . .	Number	 -0000000Ah   
 STD_OUTPUT_HANDLE  . . . . . . .	Number	 -0000000Bh   
 STRING_BUFFER  . . . . . . . . .	Text   	 [EBP + 12]
+SUM_RESULT_PROMPT  . . . . . . .	Text   	 [EBP + 12]
 SetConsoleTitle  . . . . . . . .	Text   	 SetConsoleTitleA
 TAB  . . . . . . . . . . . . . .	Number	 00000009h   
 TRUE . . . . . . . . . . . . . .	Number	 00000001h   
@@ -992,7 +1036,6 @@ black  . . . . . . . . . . . . .	Number	 00000000h
 blue . . . . . . . . . . . . . .	Number	 00000001h   
 brown  . . . . . . . . . . . . .	Number	 00000006h   
 byteCount  . . . . . . . . . . .	DWord	 00000256 _DATA	
-char_list  . . . . . . . . . . .	Byte	 00000265 _DATA	
 cyan . . . . . . . . . . . . . .	Number	 00000003h   
 enter_instruction  . . . . . . .	Byte	 00000159 _DATA	
 error_message1 . . . . . . . . .	Byte	 00000178 _DATA	
@@ -1018,7 +1061,7 @@ lightRed . . . . . . . . . . . .	Number	 0000000Ch
 magenta  . . . . . . . . . . . .	Number	 00000005h   
 red  . . . . . . . . . . . . . .	Number	 00000004h   
 result_prompt  . . . . . . . . .	Byte	 000001D1 _DATA	
-sign_indicator . . . . . . . . .	DWord	 0000026F _DATA	
+sign_indicator . . . . . . . . .	DWord	 00000265 _DATA	
 sum_prompt . . . . . . . . . . .	Byte	 000001F5 _DATA	
 user_input_array . . . . . . . .	Byte	 0000022C _DATA	
 white  . . . . . . . . . . . . .	Number	 0000000Fh   
