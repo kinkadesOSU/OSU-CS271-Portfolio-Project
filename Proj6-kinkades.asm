@@ -107,12 +107,18 @@ CALL	WriteVal
 
 
 
-; calculate the sum and average
+; calculate the sum
 PUSH	OFFSET	int_string
 PUSH	OFFSET	sum_prompt
+;PUSH	OFFSET	avg_prompt
+PUSH	OFFSET	user_input_array	; array to sum
+CALL	calculate_sum
+
+; calculate the average
+PUSH	OFFSET	int_string
 PUSH	OFFSET	avg_prompt
 PUSH	OFFSET	user_input_array	; array to sum
-CALL	calculate_sum_and_average
+CALL	calculate_avg
 
 CALL	CrLf
 
@@ -281,7 +287,7 @@ ReadVal PROC
 		ADD		EDI, 4
 			
 		POP		ECX								; restore outer loop counter
-		PUSH	EBP
+		PUSH	EBP								; holds stack pointer
 		PUSH	EDI
 		;PUSH	ECX
 		DEC		ECX
@@ -292,8 +298,8 @@ ReadVal PROC
 
 	_errorMessage:
 	; print error message
-		POP		ECX										; unload the stack
-		POP		EAX										; unload the stack
+		POP		ECX										; loop counter
+		POP		EDI		; was EAX						; save location
 
 		POP		EAX										; get stack pointer off
 		MOV		EBP, EAX								; move to EBP for the local variables
@@ -305,14 +311,14 @@ ReadVal PROC
 		CALL	CrLf
 	
 		; set up stack for another try
-		PUSH	EBP										
-		MOV		EBX, LIST_OF_NUMBERS
-		PUSH	EBX
+		PUSH	EBP										; stack pointer							
+		;MOV		EBX, LIST_OF_NUMBERS
+		PUSH	EDI										; save location
 		JMP		_enterValue
 	
 	_overflow:
 		POP		EBP						; stack pointer
-		POP		ECX						; location of converted array
+		POP		EDI						; location of converted array
 		POP		ECX						; + / - 1
 		POP		ECX						; loop counter
 
@@ -325,8 +331,9 @@ ReadVal PROC
 
 		; set up stack for another try
 		PUSH	EBP										
-		MOV		EBX, LIST_OF_NUMBERS
-		PUSH	EBX
+		;MOV		EBX, LIST_OF_NUMBERS
+		;PUSH	EBX
+		PUSH	EDI
 		JMP		_enterValue
 
 	_endProcedure:
@@ -337,10 +344,10 @@ ReadVal PROC
 ReadVal ENDP
 
 
-calculate_sum_and_average PROC
-	CONVERTED_STRING	EQU		[EBP + 20]
-	SUM_RESULT_PROMPT	EQU		[EBP + 16]
-	AVG_RESULT_PROMPT	EQU		[EBP + 12]
+calculate_sum PROC
+	CONVERTED_STRING	EQU		[EBP + 16]
+	SUM_RESULT_PROMPT	EQU		[EBP + 12]
+	;AVG_RESULT_PROMPT	EQU		[EBP + 12]
 	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
 
 	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
@@ -363,9 +370,31 @@ calculate_sum_and_average PROC
 	MOV		EDX, SUM_RESULT_PROMPT
 	CALL	WriteString
 
-	;-------------------------REFACTOR1----------------------------------------
+	PUSH	EAX							; number to write
+	MOV		EDI, CONVERTED_STRING		
+	PUSH	EDI							; where to put converted string
+	
+	CALL	WriteVal_Helper
 
-	MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
+	CALL	CrLf
+
+	MOV		ESP, EBP
+	POP		EBP
+	RET		16
+
+calculate_sum ENDP
+;---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+WriteVal_Helper PROC
+	
+	CONVERT_NUM		EQU	[EBP + 12]
+	STORE_LOCATION	EQU	[EBP + 8]
+
+	PUSH	EBP									; store stack frame reference
+	MOV		EBP, ESP
+
+	MOV		EAX, CONVERT_NUM						; offset of where to put the converted string
+	MOV		EDI, STORE_LOCATION								; nummber to convert
+
 	MOV		EBX, 10									
 	CMP		EAX, 0									; check if the number is negative
 	JG		_divideLoop
@@ -373,20 +402,20 @@ calculate_sum_and_average PROC
 	MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
  
 	_divideLoop:
- 	MOV		EDX, 0
- 	DIV		EBX
+ 		MOV		EDX, 0
+ 		DIV		EBX
 
- 	XCHG	EAX, EDX							; swap the quotient and the remainder
-	ADD		AL, '0'
+ 		XCHG	EAX, EDX							; swap the quotient and the remainder
+		ADD		AL, '0'
 
 
- 	MOV		[EDI], al							; saves the ascii digit
- 	DEC		EDI
- 	XCHG	EAX, EDX							; swap the quotient and the remainder
+ 		MOV		[EDI], al							; saves the ascii digit
+ 		DEC		EDI
+ 		XCHG	EAX, EDX							; swap the quotient and the remainder
 
- 	INC		ECX
- 	CMP		EAX, 0					
- 	JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
+ 		INC		ECX
+ 		CMP		EAX, 0					
+ 		JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
 
 	; add negative sign if needed
 	CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
@@ -395,13 +424,25 @@ calculate_sum_and_average PROC
 	MOV		BYTE PTR[EDI], "-"
 	DEC		EDI
 
-	; print the string
-	_printString:
+ 	; print the string
+ 	_printString:
 		INC		EDI									; skip the sign bit (should be empty for a positive number)
 		mDisplayString	EDI
+	
+	MOV		ESP, EBP
+	POP		EBP
+	RET		8
+
+WriteVal_Helper ENDP
 
 
-	;-------------------------REFACTOR1----------------------------------------
+calculate_avg PROC
+	CONVERTED_STRING	EQU		[EBP + 16]
+	AVG_RESULT_PROMPT	EQU		[EBP + 12]
+	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
+
+	PUSH	EBP									; store stack frame reference
+	MOV		EBP, ESP
 
 	CALL	CrLf
 	MOV		EDX, AVG_RESULT_PROMPT
@@ -421,61 +462,17 @@ calculate_sum_and_average PROC
 	MOV		EBX, 10
 	IDIV	EBX
 
-	;-------------------------REFACTOR2----------------------------------------
+	PUSH	EAX							; number to write
+	MOV		EDI, CONVERTED_STRING		
+	PUSH	EDI							; where to put converted string
 	
-
-	MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
-	MOV		EBX, 10									
-	CMP		EAX, 0									; check if the number is negative
-	JG		_divideLoop2
-	NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
-	MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
- 
-	_divideLoop2:
- 	MOV		EDX, 0
- 	DIV		EBX
-
- 	XCHG	EAX, EDX							; swap the quotient and the remainder
-	ADD		AL, '0'
-
-
- 	MOV		[EDI], al							; saves the ascii digit
- 	DEC		EDI
- 	XCHG	EAX, EDX							; swap the quotient and the remainder
-
- 	INC		ECX
- 	CMP		EAX, 0					
- 	JNZ		_divideLoop2							; if the quotient isn't 0, we need to divide again
-
-	; add negative sign if needed
-	CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
-	JNE		_printString2
-	INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
-	MOV		BYTE PTR[EDI], "-"
-	DEC		EDI
-
-	; print the string
-	_printString2:
-		INC		EDI									; skip the sign bit (should be empty for a positive number)
-
-		mDisplayString	EDI
-
-	;-------------------------REFACTOR2----------------------------------------
-	
-	
-	CALL	CrLf
+	CALL	WriteVal_Helper
 
 	MOV		ESP, EBP
 	POP		EBP
 	RET		16
 
-calculate_sum_and_average ENDP
-
-print_sum	PROC
-
-
-print_sum	ENDP
-
+calculate_avg ENDP
 
 
 WriteVal PROC ; also prints out the list of what the user entered
