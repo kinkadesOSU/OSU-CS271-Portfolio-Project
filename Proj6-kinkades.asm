@@ -37,17 +37,17 @@ avg_prompt					BYTE	"The rounded average is: ",0
 
 user_input_array			BYTE	10 DUP(?),0
 
-;-----------------CONVERT STRING TO INT-----------------
+;-----------------ReadVal-----------------
 input_accumulator			BYTE	MAX_LENGTH DUP(?)
 BUFFER						BYTE	21 DUP(0)
 byteCount					DWORD	?
 LOCAL_ERROR1				EQU DWORD PTR [EBP - 4]
 LOCAL_ERROR2				EQU DWORD PTR [EBP - 8]
 
-;-----------------CONVERT INT TO STRING-----------------
+;-----------------WriteVal-----------------
 int_string					BYTE	MAX_LENGTH DUP(?),0
 sign_indicator				DWORD	0						; need a boolean to tell us which sign the number is. Can't use the sign flag since it's controlled by the system. Assume it's a positive number to start (makes life easier)
-
+spacer						BYTE	", ",0
 
 .code
 main PROC
@@ -73,22 +73,27 @@ _inputLoop:
 	PUSH	OFFSET	enter_instruction
 	PUSH	OFFSET	BUFFER
 	PUSH	SIZEOF	BUFFER
-	CALL	convert_string_to_int	
+	CALL	ReadVal	
 
 	
+CALL	CrLf
 
-
-
+PUSH	OFFSET spacer
 PUSH	sign_indicator				; to flip the sign
 PUSH	OFFSET int_string			; address to place the converted integer
 PUSH	OFFSET result_prompt
-PUSH	EAX							; has number to convert
-CALL	convert_int_to_string
+PUSH	OFFSET user_input_array		; has number to convert
+CALL	WriteVal
+
+
 
 ; calculate the sum and average
-PUSH	OFFSET	result_prompt
+PUSH	OFFSET	sum_prompt
+PUSH	OFFSET	avg_prompt
 PUSH	OFFSET	user_input_array	; array to sum
 CALL	calculate_sum_and_average
+
+CALL	CrLf
 
 ;say goodbye
 PUSH	offset	goodbye
@@ -135,7 +140,7 @@ introduction PROC
 
 introduction ENDP
 
-convert_string_to_int PROC
+ReadVal PROC
 
 	LIST_OF_NUMBERS				EQU [EBP + 28]
 	ERROR1						EQU [EBP + 24]
@@ -306,12 +311,12 @@ convert_string_to_int PROC
 	pop		EBP
 	ret		24
 
-convert_string_to_int ENDP
+ReadVal ENDP
 
 
 calculate_sum_and_average PROC
-	AVG_RESULT_PROMPT	EQU		[EBP + 16]
-	SUM_RESULT_PROMPT	EQU		[EBP + 12]
+	SUM_RESULT_PROMPT	EQU		[EBP + 16]
+	AVG_RESULT_PROMPT	EQU		[EBP + 12]
 	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
 
 	PUSH	EBP									; store stack frame reference
@@ -333,6 +338,7 @@ calculate_sum_and_average PROC
 	CALL	CrLf
 	MOV		EDX, AVG_RESULT_PROMPT
 	CALL	WriteString
+
 	CALL	CrLf
 
 	MOV		ESP, EBP
@@ -344,20 +350,21 @@ calculate_sum_and_average ENDP
 
 
 
-convert_int_to_string PROC ; also prints out the list of what the user entered
+WriteVal PROC ; also prints out the list of what the user entered
+	DELIMITER			EQU		[EBP + 24]			; comma to seperate printed values
 	INT_SIGN			EQU		[EBP + 20]			; make shift sign flag		
 	CONVERTED_STRING	EQU		[EBP + 16]			; string that holds the converted integer
 	USER_MESSAGE		EQU		[EBP + 12]			; offset to result_prompt
-	NUMBER_TO_CONVERT	EQU		[EBP + 8]
+	CONVERT_LIST		EQU		[EBP + 8]
 	
 	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
 
 	PUSH	EBP										; store stack frame reference
 	MOV		EBP, ESP	
 
-	SUB		ESP, 4									; make room for local variable
+	SUB		ESP, 4										; make room for local variable
 
-	MOV		EAX, NUMBER_TO_CONVERT
+	
 	
 	MOV		EBX, INT_SIGN
 	MOV		INT_SIGN_LOCAL, EBX
@@ -366,53 +373,70 @@ convert_int_to_string PROC ; also prints out the list of what the user entered
 	MOV		EDX, USER_MESSAGE
 	CALL	WriteString
 
-	MOV		ECX, 0
-	MOV		EDI,CONVERTED_STRING					; offset int_string
-	ADD		EDI, (MAX_LENGTH-1)
-	MOV		EBX, 10
+	MOV		EDI, CONVERT_LIST
+	MOV		ECX, 10										; loop for printing
+
+	
+	_printLoop:
+		PUSH	ECX
+		MOV		ECX, 0									; counter for WriteString
+		;MOV		EDI, CONVERT_LIST						; offset of list of 10 integers to convert back to string
+		MOV		EAX, [EDI]								; move number to convert to EAX
+		PUSH	EDI										; save the address of the number being converted
+
+		MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
+		;ADD		EDI, (MAX_LENGTH-1)
+	
+		MOV		EBX, 10	
+		CMP		EAX, 0									; check if the number is negative
+		JG		_divideLoop
+		NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
+		MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
+
+		 _divideLoop:
+ 			MOV		EDX, 0
+ 			DIV		EBX
+
+ 			XCHG	EAX, EDX							; swap the quotient and the remainder
+			ADD		AL, '0'
+
+
+ 			MOV		[EDI], al							; saves the ascii digit
+ 			DEC		EDI
+ 			XCHG	EAX, EDX							; swap the quotient and the remainder
+
+ 			INC		ECX
+ 			CMP		EAX, 0					
+ 			JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
+
+
+			; add negative sign if needed
+			CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
+			JNE		_printString
+			INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
+			MOV		BYTE PTR[EDI], "-"
+			DEC		EDI
+
+ 		; print the string
+ 		_printString:
+			INC		EDI									; skip the sign bit (should be empty for a positive number)
+ 			MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
+ 			CALL	WriteString
+			MOV		EDX, DELIMITER
+			CALL	WriteString
+			;CALL	CrLf
 		
-	CMP		EAX, 0
-	JG		_divideLoop
-	NEG		EAX									; make the negative number positive
-	MOV		INT_SIGN_LOCAL, 1
-
-	 _divideLoop:
- 		MOV		EDX, 0
- 		DIV		EBX
-
- 		XCHG	EAX, EDX							; swap the quotient and the remainder
-		ADD		AL, '0'
-
-
- 		MOV		[EDI], al							; saves the ascii digit
- 		DEC		EDI
- 		XCHG	EAX, EDX							; swap the quotient and the remainder
-
- 		INC		ECX
- 		CMP		EAX, 0					
- 		JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
-
-
-		; add negative sign if needed
-		CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
-		JNE		_printString
-		INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
-		MOV		BYTE PTR[EDI], "-"
-		DEC		EDI
-
- 	; print the string
- 	_printString:
-		INC		EDI									; skip the sign bit (should be empty for a positive number)
- 		MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
- 		CALL	WriteString
-		CALL	CrLf
+		POP		EDI
+		ADD		EDI, 4
+		POP		ECX
+		LOOP	_printLoop
 
 	; clean up stack
 	mov		ESP, EBP
 	pop		EBP
 	ret		8
 
-convert_int_to_string ENDP
+WriteVal ENDP
 
 say_goodbye PROC
 	GOOD_BYE		EQU		[EBP + 8]
