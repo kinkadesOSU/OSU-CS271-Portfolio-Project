@@ -108,6 +108,7 @@ CALL	WriteVal
 
 
 ; calculate the sum and average
+PUSH	OFFSET	int_string
 PUSH	OFFSET	sum_prompt
 PUSH	OFFSET	avg_prompt
 PUSH	OFFSET	user_input_array	; array to sum
@@ -337,13 +338,18 @@ ReadVal ENDP
 
 
 calculate_sum_and_average PROC
+	CONVERTED_STRING	EQU		[EBP + 20]
 	SUM_RESULT_PROMPT	EQU		[EBP + 16]
 	AVG_RESULT_PROMPT	EQU		[EBP + 12]
 	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
 
+	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
+
 	PUSH	EBP									; store stack frame reference
 	MOV		EBP, ESP
 	
+	SUB		ESP, 4
+
 	MOV		ECX, 10
 	MOV		EDI, NUM_ARRAY
 	MOV		EAX, 0
@@ -356,24 +362,119 @@ calculate_sum_and_average PROC
 	CALL	CrLf
 	MOV		EDX, SUM_RESULT_PROMPT
 	CALL	WriteString
-	CALL	WriteDec
+
+	;-------------------------REFACTOR1----------------------------------------
+
+	MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
+	MOV		EBX, 10									
+	CMP		EAX, 0									; check if the number is negative
+	JG		_divideLoop
+	NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
+	MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
+ 
+	_divideLoop:
+ 	MOV		EDX, 0
+ 	DIV		EBX
+
+ 	XCHG	EAX, EDX							; swap the quotient and the remainder
+	ADD		AL, '0'
+
+
+ 	MOV		[EDI], al							; saves the ascii digit
+ 	DEC		EDI
+ 	XCHG	EAX, EDX							; swap the quotient and the remainder
+
+ 	INC		ECX
+ 	CMP		EAX, 0					
+ 	JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
+
+	; add negative sign if needed
+	CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
+	JNE		_printString
+	INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
+	MOV		BYTE PTR[EDI], "-"
+	DEC		EDI
+
+	; print the string
+	_printString:
+		INC		EDI									; skip the sign bit (should be empty for a positive number)
+		mDisplayString	EDI
+
+
+	;-------------------------REFACTOR1----------------------------------------
+
 	CALL	CrLf
 	MOV		EDX, AVG_RESULT_PROMPT
 	CALL	WriteString
 
 	; calculate average
+	MOV		ECX, 10
+	MOV		EDI, NUM_ARRAY
+	MOV		EAX, 0
+
+	_sumLoop2:
+		ADD	EAX, [EDI]
+		ADD	EDI, 4
+		LOOP	_sumLoop2
+	
 	CDQ
 	MOV		EBX, 10
 	IDIV	EBX
-	Call	WriteDec
+
+	;-------------------------REFACTOR2----------------------------------------
+	
+
+	MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
+	MOV		EBX, 10									
+	CMP		EAX, 0									; check if the number is negative
+	JG		_divideLoop2
+	NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
+	MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
+ 
+	_divideLoop2:
+ 	MOV		EDX, 0
+ 	DIV		EBX
+
+ 	XCHG	EAX, EDX							; swap the quotient and the remainder
+	ADD		AL, '0'
+
+
+ 	MOV		[EDI], al							; saves the ascii digit
+ 	DEC		EDI
+ 	XCHG	EAX, EDX							; swap the quotient and the remainder
+
+ 	INC		ECX
+ 	CMP		EAX, 0					
+ 	JNZ		_divideLoop2							; if the quotient isn't 0, we need to divide again
+
+	; add negative sign if needed
+	CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
+	JNE		_printString2
+	INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
+	MOV		BYTE PTR[EDI], "-"
+	DEC		EDI
+
+	; print the string
+	_printString2:
+		INC		EDI									; skip the sign bit (should be empty for a positive number)
+
+		mDisplayString	EDI
+
+	;-------------------------REFACTOR2----------------------------------------
+	
+	
 	CALL	CrLf
 
 	MOV		ESP, EBP
 	POP		EBP
-	RET		12
+	RET		16
 
 calculate_sum_and_average ENDP
 
+print_sum	PROC
+
+
+print_sum	ENDP
 
 
 
@@ -385,14 +486,11 @@ WriteVal PROC ; also prints out the list of what the user entered
 	CONVERT_LIST		EQU		[EBP + 8]
 	
 	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
-	MACRO_STRING		EQU	DWORD PTR [EBP - 8]
 
 	PUSH	EBP										; store stack frame reference
 	MOV		EBP, ESP	
 
 	SUB		ESP, 4										; make room for local variable
-
-	
 	
 	MOV		EBX, INT_SIGN
 	MOV		INT_SIGN_LOCAL, EBX
@@ -405,7 +503,6 @@ WriteVal PROC ; also prints out the list of what the user entered
 	MOV		EDI, CONVERT_LIST
 	MOV		ECX, 10										; loop for printing
 
-	
 	_printLoop:
 		PUSH	ECX
 		MOV		ECX, 0									; counter for WriteString
@@ -413,13 +510,12 @@ WriteVal PROC ; also prints out the list of what the user entered
 		PUSH	EDI										; save the address of the number being converted
 
 		MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
-		MOV		EBX, 10	
+		MOV		EBX, 10									
 		CMP		EAX, 0									; check if the number is negative
 		JG		_divideLoop
 		NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
 		MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
-
-		
+ 
 		 _divideLoop:
  			MOV		EDX, 0
  			DIV		EBX
@@ -436,7 +532,6 @@ WriteVal PROC ; also prints out the list of what the user entered
  			CMP		EAX, 0					
  			JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
 
-
 			; add negative sign if needed
 			CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
 			JNE		_printString
@@ -449,8 +544,6 @@ WriteVal PROC ; also prints out the list of what the user entered
 			INC		EDI									; skip the sign bit (should be empty for a positive number)
  			;MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
  			;CALL	WriteString
-
-			;MOV		MACRO_STRING, USER_MESSAGE
 
 			mDisplayString	EDI
 
@@ -475,6 +568,7 @@ WriteVal PROC ; also prints out the list of what the user entered
 	ret		8
 
 WriteVal ENDP
+
 
 say_goodbye PROC
 	GOOD_BYE		EQU		[EBP + 8]
