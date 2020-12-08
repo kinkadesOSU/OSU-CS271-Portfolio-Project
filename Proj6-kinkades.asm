@@ -103,7 +103,7 @@ PUSH	sign_indicator				; to flip the sign
 PUSH	OFFSET int_string			; address to place the converted integer
 PUSH	OFFSET result_prompt
 PUSH	OFFSET user_input_array		; has number to convert
-CALL	WriteVal
+CALL	WriteVal_Helper
 
 
 
@@ -120,6 +120,7 @@ PUSH	OFFSET	avg_prompt
 PUSH	OFFSET	user_input_array	; array to sum
 CALL	calculate_avg
 
+CALL	CrLf
 CALL	CrLf
 
 ;say goodbye
@@ -350,12 +351,8 @@ calculate_sum PROC
 	;AVG_RESULT_PROMPT	EQU		[EBP + 12]
 	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
 
-	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
-
 	PUSH	EBP									; store stack frame reference
 	MOV		EBP, ESP
-	
-	SUB		ESP, 4
 
 	MOV		ECX, 10
 	MOV		EDI, NUM_ARRAY
@@ -374,9 +371,7 @@ calculate_sum PROC
 	MOV		EDI, CONVERTED_STRING		
 	PUSH	EDI							; where to put converted string
 	
-	CALL	WriteVal_Helper
-
-	CALL	CrLf
+	CALL	WriteVal
 
 	MOV		ESP, EBP
 	POP		EBP
@@ -384,7 +379,7 @@ calculate_sum PROC
 
 calculate_sum ENDP
 ;---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-WriteVal_Helper PROC
+WriteVal PROC
 	
 	CONVERT_NUM		EQU	[EBP + 12]
 	STORE_LOCATION	EQU	[EBP + 8]
@@ -433,7 +428,7 @@ WriteVal_Helper PROC
 	POP		EBP
 	RET		8
 
-WriteVal_Helper ENDP
+WriteVal ENDP
 
 
 calculate_avg PROC
@@ -466,7 +461,7 @@ calculate_avg PROC
 	MOV		EDI, CONVERTED_STRING		
 	PUSH	EDI							; where to put converted string
 	
-	CALL	WriteVal_Helper
+	CALL	WriteVal
 
 	MOV		ESP, EBP
 	POP		EBP
@@ -475,7 +470,7 @@ calculate_avg PROC
 calculate_avg ENDP
 
 
-WriteVal PROC ; also prints out the list of what the user entered
+WriteVal_Helper PROC ; also prints out the list of what the user entered
 	DELIMITER			EQU		[EBP + 24]			; comma to seperate printed values
 	INT_SIGN			EQU		[EBP + 20]			; make shift sign flag		
 	CONVERTED_STRING	EQU		[EBP + 16]			; string that holds the converted integer
@@ -507,42 +502,14 @@ WriteVal PROC ; also prints out the list of what the user entered
 		PUSH	EDI										; save the address of the number being converted
 
 		MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
-		MOV		EBX, 10									
-		CMP		EAX, 0									; check if the number is negative
-		JG		_divideLoop
-		NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
-		MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
- 
-		 _divideLoop:
- 			MOV		EDX, 0
- 			DIV		EBX
 
- 			XCHG	EAX, EDX							; swap the quotient and the remainder
-			ADD		AL, '0'
+		PUSH	EAX							; number to write
+		MOV		EDI, CONVERTED_STRING		
+		PUSH	EDI							; where to put converted string
+	
+		CALL	WriteVal
+	
 
-
- 			MOV		[EDI], al							; saves the ascii digit
- 			DEC		EDI
- 			XCHG	EAX, EDX							; swap the quotient and the remainder
-
- 			INC		ECX
- 			CMP		EAX, 0					
- 			JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
-
-			; add negative sign if needed
-			CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
-			JNE		_printString
-			INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
-			MOV		BYTE PTR[EDI], "-"
-			DEC		EDI
-
- 		; print the string
- 		_printString:
-			INC		EDI									; skip the sign bit (should be empty for a positive number)
- 			;MOV		EDX, EDI							; move pointer for the string to EDX for WriteString
- 			;CALL	WriteString
-
-			mDisplayString	EDI
 
 			POP		EDI
 			POP		ECX
@@ -564,7 +531,7 @@ WriteVal PROC ; also prints out the list of what the user entered
 	pop		EBP
 	ret		8
 
-WriteVal ENDP
+WriteVal_Helper ENDP
 
 
 say_goodbye PROC
