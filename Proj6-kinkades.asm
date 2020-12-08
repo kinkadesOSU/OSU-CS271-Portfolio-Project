@@ -23,17 +23,16 @@ mGetString MACRO printMe, size_of_printMe
 
 ENDM
 
+; Macro to write a string
 mDisplayString MACRO buffer
-
 	PUSH	EDX 
 	MOV		EDX,  buffer
 	CALL	WriteString
 	POP		EDX
-
 ENDM
 
 ; (insert constant definitions here)
-MAX_LENGTH = 10 ; 10 digits + a sign + null terminator
+MAX_LENGTH = 30 ; 10 digits + a sign + null terminator
 
 .data
 
@@ -61,8 +60,6 @@ user_input_array			BYTE	10 DUP(?),0
 input_accumulator			BYTE	MAX_LENGTH DUP(?)
 BUFFER						BYTE	21 DUP(0)
 byteCount					DWORD	?
-LOCAL_ERROR1				EQU DWORD PTR [EBP - 4]
-LOCAL_ERROR2				EQU DWORD PTR [EBP - 8]
 
 ;-----------------WriteVal-----------------
 int_string					BYTE	MAX_LENGTH DUP(?),0
@@ -103,9 +100,7 @@ PUSH	sign_indicator				; to flip the sign
 PUSH	OFFSET int_string			; address to place the converted integer
 PUSH	OFFSET result_prompt
 PUSH	OFFSET user_input_array		; has number to convert
-CALL	WriteVal_Helper
-
-
+CALL	print_results
 
 ; calculate the sum
 PUSH	OFFSET	int_string
@@ -117,7 +112,7 @@ CALL	calculate_sum
 ; calculate the average
 PUSH	OFFSET	int_string
 PUSH	OFFSET	avg_prompt
-PUSH	OFFSET	user_input_array	; array to sum
+PUSH	OFFSET	user_input_array	; array to average
 CALL	calculate_avg
 
 CALL	CrLf
@@ -131,6 +126,19 @@ CALL	CrLf
 main ENDP
 
 ; (insert additional procedures here)
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: introduction
+
+; This procedure introduces the program to the user. It also gives the user instructions for the program
+
+; Preconditions: All messages have been declared
+
+; Postconditions: Stack is cleared. User has been informed
+
+; Receives: The address of the introduction and instruction messages
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 introduction PROC
 	INTRO_1				EQU		[EBP + 28]
 	INTRO_2				EQU		[EBP + 24]
@@ -168,6 +176,20 @@ introduction PROC
 
 introduction ENDP
 
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: ReadVal
+
+; This procedure reads a string from the user, converts it to an integer (the long way), and stores the resulting integer in an array 10 times.
+; An error is printed if the string can't be converted, and the user is given an opportunity to try again
+
+; Preconditions: All messages and arrays have been declared
+
+; Postconditions: Stack is cleared. 10 strings have been input, converted to an integer, and stored
+
+; Receives: The address of the storage location, offsets to the error messages, and a buffer ReadString
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 ReadVal PROC
 
 	LIST_OF_NUMBERS				EQU [EBP + 28]
@@ -177,24 +199,18 @@ ReadVal PROC
 	STRING_BUFFER				EQU [EBP + 12]
 	SIZEOF_STRING_BUFFER		EQU [EBP + 8]
 
-	PUSH	EBP						; store stack frame reference
+	PUSH	EBP								; store stack frame reference
 	MOV		EBP, ESP
 	
-	SUB		ESP, 8					; reserve space for locals
-	
 	MOV		EBX, LIST_OF_NUMBERS
-	MOV		EAX, ERROR1
-	MOV		LOCAL_ERROR1, EAX
-	MOV		EAX, ERROR2
-	MOV		LOCAL_ERROR2, EAX
 	
-	PUSH	EBP						; save stack pointer because EBP is going to be used later
-	PUSH	EBX						; pushes first location of the array to write numbers into
+	PUSH	EBP								; save stack pointer because EBP is going to be used later
+	PUSH	EBX								; pushes first location of the array to write numbers into
 
-	MOV		ECX, 10					; loop counter to get 10 strings
+	MOV		ECX, 10							; loop counter to get 10 strings
 	
 	_enterValue:
-		PUSH	ECX						; save loop counter
+		PUSH	ECX							; save loop counter
 		; give the user some instructions
 		MOV		EDX, USER_INSTRUCTION
 		CALL	WriteString
@@ -254,9 +270,9 @@ ReadVal PROC
 			; passes sign checks. This loop then iterates through each character. Need to verify that the character is a digit so we can convert the character to a digit
 			; check new digit
 			CMP		dl, '0'
-			JB		_errorMessage
+			JB		_invalidCharacter
 			CMP		dl, '9'
-			JA		_errorMessage
+			JA		_invalidCharacter
 			
 			; convert
 			AND		EDX, 0Fh
@@ -283,57 +299,71 @@ ReadVal PROC
 		MOV		EBP, EDI							; restore stack pointer to EBP
 		
 		; store the digit
-		MOV		EDI, EBX									; offset to address of array that will hold the ten
+		MOV		EDI, EBX							; offset to address of array that will hold the ten
 		MOV		[EDI], EAX
 		ADD		EDI, 4
 			
-		POP		ECX								; restore outer loop counter
-		PUSH	EBP								; holds stack pointer
+		POP		ECX									; restore outer loop counter
+		PUSH	EBP									; holds stack pointer
 		PUSH	EDI
-		;PUSH	ECX
 		DEC		ECX
 		JNZ		_enterValue
-		;LOOP	_enterValue								; get the next value and repeat
 
 		JMP		_endProcedure
 
 	_errorMessage:
 	; print error message
-		POP		ECX										; loop counter
-		POP		EDI		; was EAX						; save location
+		POP		ECX									; loop counter
+		POP		EDI									; save location
 
-		POP		EAX										; get stack pointer off
-		MOV		EBP, EAX								; move to EBP for the local variables
-		MOV		EDX, LOCAL_ERROR1
+		POP		EAX									; get stack pointer off
+		MOV		EBP, EAX							; move to EBP for the local variables
+		MOV		EDX, ERROR1
 		CALL	WriteString
 		CALL	CrLf
-		MOV		EDX, LOCAL_ERROR2
+		MOV		EDX, ERROR2 
 		CALL	WriteString
 		CALL	CrLf
 	
 		; set up stack for another try
-		PUSH	EBP										; stack pointer							
-		;MOV		EBX, LIST_OF_NUMBERS
-		PUSH	EDI										; save location
+		PUSH	EBP									; stack pointer							
+		PUSH	EDI									; save location
 		JMP		_enterValue
-	
-	_overflow:
-		POP		EBP						; stack pointer
-		POP		EDI						; location of converted array
-		POP		ECX						; + / - 1
-		POP		ECX						; loop counter
 
-		MOV		EDX, LOCAL_ERROR1
+	_invalidCharacter:
+		POP		EBP									; stack pointer
+		POP		EDI									; save location
+		POP		ECX									; + / -1
+		POP		ECX									; loop counter
+
+		MOV		EDX, ERROR1
 		CALL	WriteString
 		CALL	CrLf
-		MOV		EDX, LOCAL_ERROR2
+		MOV		EDX, ERROR2 
+		CALL	WriteString
+		CALL	CrLf
+
+		; set up stack for another try
+		PUSH	EBP									; stack pointer							
+		PUSH	EDI									; save location
+		JMP		_enterValue
+
+	
+	_overflow:
+		POP		EBP									; stack pointer
+		POP		EDI									; location of converted array
+		POP		ECX									; + / - 1
+		POP		ECX									; loop counter
+
+		MOV		EDX, ERROR1 
+		CALL	WriteString
+		CALL	CrLf
+		MOV		EDX, ERROR2
 		CALL	WriteString
 		CALL	CrLf
 
 		; set up stack for another try
 		PUSH	EBP										
-		;MOV		EBX, LIST_OF_NUMBERS
-		;PUSH	EBX
 		PUSH	EDI
 		JMP		_enterValue
 
@@ -344,12 +374,24 @@ ReadVal PROC
 
 ReadVal ENDP
 
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: calculate_sum
 
+; This procedure sums the integers that were converted from the user string and prints the sum along with a message to the user
+
+; Preconditions: All messages and arrays have been declared
+
+; Postconditions: Stack is cleared. The sum and a message is printed to the user
+
+; Receives: The address of the integers location, a prompt, and an offset to store the converted integer (when it's passed to WriteVal)
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 calculate_sum PROC
+
 	CONVERTED_STRING	EQU		[EBP + 16]
 	SUM_RESULT_PROMPT	EQU		[EBP + 12]
-	;AVG_RESULT_PROMPT	EQU		[EBP + 12]
-	NUM_ARRAY			EQU		[EBP + 8]		; where the converted strings are
+	NUM_ARRAY			EQU		[EBP + 8]		; where the integers are
 
 	PUSH	EBP									; store stack frame reference
 	MOV		EBP, ESP
@@ -367,32 +409,44 @@ calculate_sum PROC
 	MOV		EDX, SUM_RESULT_PROMPT
 	CALL	WriteString
 
-	PUSH	EAX							; number to write
+	PUSH	EAX									; number to write
 	MOV		EDI, CONVERTED_STRING		
-	PUSH	EDI							; where to put converted string
+	PUSH	EDI									; where to put converted string
 	
-	CALL	WriteVal
+	CALL	WriteVal							; print the integer as a string
 
 	MOV		ESP, EBP
 	POP		EBP
 	RET		16
 
 calculate_sum ENDP
-;---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: WriteVal
+
+; This procedure converts integers to strings and prints them to the screen
+
+; Preconditions: All messages and arrays have been declared
+
+; Postconditions: Stack is cleared. The integer has been converted to a string and printed to the screen
+
+; Receives: An integer to convert and an offset to store it in for WriteString
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 WriteVal PROC
 	
 	CONVERT_NUM		EQU	[EBP + 12]
 	STORE_LOCATION	EQU	[EBP + 8]
 
-	PUSH	EBP									; store stack frame reference
+	PUSH	EBP										; store stack frame reference
 	MOV		EBP, ESP
 
 	MOV		EAX, CONVERT_NUM						; offset of where to put the converted string
-	MOV		EDI, STORE_LOCATION								; nummber to convert
+	MOV		EDI, STORE_LOCATION						; nummber to convert
 
 	MOV		EBX, 10									
 	CMP		EAX, 0									; check if the number is negative
-	JG		_divideLoop
+	JGE		_divideLoop
 	NEG		EAX										; make the negative number positive. The ABS of the value is needed, and a "-" will just be added on
 	MOV		INT_SIGN_LOCAL, 1						; flag to add the negative sign if needed
  
@@ -413,9 +467,9 @@ WriteVal PROC
  		JNZ		_divideLoop							; if the quotient isn't 0, we need to divide again
 
 	; add negative sign if needed
-	CMP		INT_SIGN_LOCAL, 1					; 1 means the sign is negative
+	CMP		INT_SIGN_LOCAL, 1						; 1 means the sign is negative
 	JNE		_printString
-	INC		ECX									; increment ECX to tell WriteString that there is 1 more character to print
+	INC		ECX										; increment ECX to tell WriteString that there is 1 more character to print
 	MOV		BYTE PTR[EDI], "-"
 	DEC		EDI
 
@@ -429,7 +483,19 @@ WriteVal PROC
 	RET		8
 
 WriteVal ENDP
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: calculate_avg
 
+; This procedure calculates the average of the integers that were converted from the user string and prints the average along with a message to the user
+
+; Preconditions: All messages and arrays have been declared
+
+; Postconditions: Stack is cleared. The average and a message is printed to the user
+
+; Receives: The address of the integers location, a prompt, and an offset to store the converted integer (when it's passed to WriteVal)
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 calculate_avg PROC
 	CONVERTED_STRING	EQU		[EBP + 16]
@@ -448,18 +514,18 @@ calculate_avg PROC
 	MOV		EDI, NUM_ARRAY
 	MOV		EAX, 0
 
-	_sumLoop2:
+	_sumLoop:
 		ADD	EAX, [EDI]
 		ADD	EDI, 4
-		LOOP	_sumLoop2
+		LOOP	_sumLoop
 	
 	CDQ
 	MOV		EBX, 10
 	IDIV	EBX
 
-	PUSH	EAX							; number to write
+	PUSH	EAX									; number to write
 	MOV		EDI, CONVERTED_STRING		
-	PUSH	EDI							; where to put converted string
+	PUSH	EDI									; where to put converted string
 	
 	CALL	WriteVal
 
@@ -469,17 +535,29 @@ calculate_avg PROC
 
 calculate_avg ENDP
 
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: print_results
 
-WriteVal_Helper PROC ; also prints out the list of what the user entered
-	DELIMITER			EQU		[EBP + 24]			; comma to seperate printed values
-	INT_SIGN			EQU		[EBP + 20]			; make shift sign flag		
-	CONVERTED_STRING	EQU		[EBP + 16]			; string that holds the converted integer
-	USER_MESSAGE		EQU		[EBP + 12]			; offset to result_prompt
+; This procedure works to print all 10 strings (that have since been converted to integers) to the console. 
+
+; Preconditions: All messages and arrays have been declared. 10 strings have been validated and converted to integers
+
+; Postconditions: Stack is cleared. The integer has been converted to a string and printed to the screen
+
+; Receives: A list of integers to print, a message to the user, a place to store each converted integer (for WriteVal), a local sign flag, and a print delimiter
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+print_results PROC ; also prints out the list of what the user entered
+	DELIMITER			EQU		[EBP + 24]				; comma to seperate printed values
+	INT_SIGN			EQU		[EBP + 20]				; make shift sign flag		
+	CONVERTED_STRING	EQU		[EBP + 16]				; string that holds the converted integer
+	USER_MESSAGE		EQU		[EBP + 12]				; offset to result_prompt
 	CONVERT_LIST		EQU		[EBP + 8]
 	
 	INT_SIGN_LOCAL		EQU DWORD PTR [EBP - 4]
 
-	PUSH	EBP										; store stack frame reference
+	PUSH	EBP											; store stack frame reference
 	MOV		EBP, ESP	
 
 	SUB		ESP, 4										; make room for local variable
@@ -503,24 +581,22 @@ WriteVal_Helper PROC ; also prints out the list of what the user entered
 
 		MOV		EDI, CONVERTED_STRING					; offset of where to put the converted string
 
-		PUSH	EAX							; number to write
+		PUSH	EAX										; number to write
 		MOV		EDI, CONVERTED_STRING		
-		PUSH	EDI							; where to put converted string
+		PUSH	EDI										; where to put converted string
 	
 		CALL	WriteVal
 	
 
 
-			POP		EDI
-			POP		ECX
+		POP		EDI
+		POP		ECX
 
-			CMP		ECX, 1								; if it's the last item, don't print a comma
-			JNE		_printComma
-			JMP		_continue
-			_printComma:
-				;MOV		EDX, DELIMITER
-				;CALL	WriteString
-				mDisplayString	DELIMITER
+		CMP		ECX, 1									; if it's the last item, don't print a comma
+		JNE		_printComma
+		JMP		_continue
+		_printComma:
+			mDisplayString	DELIMITER
 
 		_continue:
 		ADD		EDI, 4
@@ -531,9 +607,21 @@ WriteVal_Helper PROC ; also prints out the list of what the user entered
 	pop		EBP
 	ret		8
 
-WriteVal_Helper ENDP
+print_results ENDP
 
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+; Name: goodBye
 
+; This procedure prints a goodbye message to the user
+
+; Preconditions: A goodbye message has been declared
+
+; Postconditions: Stack is cleared. User has been given a farewell
+
+; Receives: The address of the goodbye message
+
+; Returns: Nothing
+;_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _s
 say_goodbye PROC
 	GOOD_BYE		EQU		[EBP + 8]
 	
