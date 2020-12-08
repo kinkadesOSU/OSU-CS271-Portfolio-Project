@@ -25,7 +25,7 @@ ENDM
 
 mDisplayString MACRO buffer
 
-	PUSH	EDX
+	PUSH	EDX 
 	MOV		EDX,  buffer
 	CALL	WriteString
 	POP		EDX
